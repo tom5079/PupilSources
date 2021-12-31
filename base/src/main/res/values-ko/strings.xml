@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="move_to_page">%1$d 페이지로 이동</string>
+    <string name="loading">불러오는 중…</string>
+</resources>
