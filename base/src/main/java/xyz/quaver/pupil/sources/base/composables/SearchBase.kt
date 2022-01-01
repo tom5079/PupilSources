@@ -16,15 +16,10 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package xyz.quaver.pupil.sources.composables
+package xyz.quaver.pupil.sources.base.composables
 
-import androidx.appcompat.graphics.drawable.DrawerArrowDrawable
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.CircularProgressIndicator
-import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,13 +27,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.accompanist.drawablepainter.rememberDrawablePainter
 import com.google.accompanist.insets.LocalWindowInsets
 import com.google.accompanist.insets.navigationBarsPadding
 import com.google.accompanist.insets.rememberInsetsPaddingValues
@@ -81,35 +74,19 @@ open class SearchBaseViewModel<T> : ViewModel() {
 fun <T> SearchBase(
     model: SearchBaseViewModel<T> = viewModel(),
     fabSubMenu: List<SubFabItem> = emptyList(),
+    navigationIcon: @Composable () -> Unit = { },
     actions: @Composable RowScope.() -> Unit = { },
     onSearch: () -> Unit = { },
     content: @Composable BoxScope.(contentPadding: PaddingValues) -> Unit
 ) {
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
     var isFabExpanded by remember { mutableStateOf(FloatingActionButtonState.COLLAPSED) }
-
-    val navigationIcon = remember { DrawerArrowDrawable(context) }
-    var navigationIconState by remember { mutableStateOf(NavigationIconState.MENU) }
-    val navigationIconTransition = updateTransition(navigationIconState, label = "navigationIconTransition")
-    val navigationIconProgress by navigationIconTransition.animateFloat(
-        label = "navigationIconProgress"
-    ) { state ->
-        when (state) {
-            NavigationIconState.MENU -> 0f
-            NavigationIconState.ARROW -> 1f
-        }
-    }
 
     val statusBarsPaddingValues = rememberInsetsPaddingValues(insets = LocalWindowInsets.current.statusBars)
 
     val searchBarDefaultOffset = statusBarsPaddingValues.calculateTopPadding() + 64.dp
     val searchBarDefaultOffsetPx = LocalDensity.current.run { searchBarDefaultOffset.roundToPx() }
-
-    LaunchedEffect(navigationIconProgress) {
-        navigationIcon.progress = navigationIconProgress
-    }
 
     Scaffold(
         floatingActionButton = {
@@ -169,18 +146,9 @@ fun <T> SearchBase(
                     .offset(0.dp, LocalDensity.current.run { model.searchBarOffset.toDp() }),
                 query = model.query,
                 onQueryChange = { model.query = it },
-                navigationIcon = {
-                    IconButton(onClick = { focusManager.clearFocus() }) {
-                        Icon(
-                            painter = rememberDrawablePainter(navigationIcon),
-                            contentDescription = null
-                        )
-                    }
-                },
+                navigationIcon = navigationIcon,
                 actions = actions,
-                onSearch = { onSearch(); focusManager.clearFocus() },
-                onTextFieldFocused = { navigationIconState = NavigationIconState.ARROW },
-                onTextFieldUnfocused = { navigationIconState = NavigationIconState.MENU }
+                onSearch = { onSearch(); focusManager.clearFocus() }
             )
         }
     }

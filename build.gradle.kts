@@ -18,6 +18,12 @@ buildscript {
     }
 }
 
+tasks.register("assembleRelease") {
+    dependsOn(*childProjects.values.filter { it.name !in listOf("base", "core") }.mapNotNull {
+        it.tasks.findByName("assembleRelease")
+    }.toTypedArray())
+}
+
 tasks.register("clean", Delete::class) {
     delete(rootProject.buildDir)
 }

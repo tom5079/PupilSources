@@ -1,4 +1,4 @@
-package xyz.quaver.pupil.sources.util
+package xyz.quaver.pupil.sources.core
 
 import java.io.File
 import java.security.MessageDigest

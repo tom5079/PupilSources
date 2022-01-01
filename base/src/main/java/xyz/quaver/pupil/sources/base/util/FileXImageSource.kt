@@ -1,4 +1,4 @@
-package xyz.quaver.pupil.sources.util
+package xyz.quaver.pupil.sources.base.util
 
 import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable

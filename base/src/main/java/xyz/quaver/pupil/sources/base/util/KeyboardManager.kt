@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package xyz.quaver.pupil.sources.util
+package xyz.quaver.pupil.sources.base.util
 
 import android.app.Activity
 import android.content.Context

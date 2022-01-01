@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package xyz.quaver.pupil.sources.composables
+package xyz.quaver.pupil.sources.base.composables
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.interaction.MutableInteractionSource

@@ -19,6 +19,15 @@ extra.apply {
 android {
     compileSdk = AndroidConfig.COMPILE_SDK
 
+    signingConfigs {
+        create("release") {
+            storeFile = File("/tmp/keystore.jks")
+            storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+            keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+            keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+        }
+    }
+
     defaultConfig {
         applicationIdSuffix = extra["applicationIdSuffix"] as String
         minSdk = AndroidConfig.MIN_SDK
@@ -38,6 +47,8 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -46,6 +57,7 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
+        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
     buildFeatures {
         compose = true
@@ -95,6 +107,16 @@ dependencies {
     implementation(Misc.PROTOBUF)
 
     implementation(Misc.JSOUP)
+
+    implementation(Misc.QUICKJS)
+
+    implementation(Misc.GUAVA)
+
+    testImplementation(Test.JUNIT)
+    androidTestImplementation(AndroidTest.JUNIT)
+    androidTestImplementation(AndroidTest.RULES)
+    androidTestImplementation(AndroidTest.RUNNER)
+    androidTestImplementation(AndroidTest.ESPRESSO)
 }
 
 protobuf {

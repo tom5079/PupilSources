@@ -25,19 +25,20 @@ import com.google.accompanist.insets.LocalWindowInsets
 import com.google.accompanist.insets.rememberInsetsPaddingValues
 import com.google.accompanist.insets.ui.Scaffold
 import com.google.accompanist.insets.ui.TopAppBar
+import com.google.common.util.concurrent.RateLimiter
 import io.ktor.client.*
 import kotlinx.coroutines.launch
 import org.kodein.di.compose.rememberInstance
 import xyz.quaver.pupil.sources.R
-import xyz.quaver.pupil.sources.composables.ReaderBase
-import xyz.quaver.pupil.sources.composables.ReaderBaseViewModel
+import xyz.quaver.pupil.sources.base.composables.ReaderBase
+import xyz.quaver.pupil.sources.base.composables.ReaderBaseViewModel
 import xyz.quaver.pupil.sources.hitomi.HitomiDatabase
 import xyz.quaver.pupil.sources.hitomi.lib.GalleryInfo
 import xyz.quaver.pupil.sources.hitomi.lib.getGalleryInfo
 import xyz.quaver.pupil.sources.hitomi.lib.getReferer
 import xyz.quaver.pupil.sources.hitomi.lib.imageUrlFromImage
-import xyz.quaver.pupil.sources.theme.Orange500
-import xyz.quaver.pupil.sources.util.withLocalResource
+import xyz.quaver.pupil.sources.base.theme.Orange500
+import xyz.quaver.pupil.sources.base.util.withLocalResource
 
 @ExperimentalFoundationApi
 @ExperimentalMaterialApi
@@ -63,7 +64,10 @@ fun Reader(navController: NavController) {
             val galleryID = itemID!!.toInt()
 
             value = getGalleryInfo(client, galleryID).also {
-                model.load(it.files.map { imageUrlFromImage(client, galleryID, it, false) }) {
+                model.load(
+                    it.files.map { imageUrlFromImage(client, galleryID, it, false) },
+                    RateLimiter.create(2.0)
+                ) {
                     append("Referer", getReferer(galleryID))
                 }
             }

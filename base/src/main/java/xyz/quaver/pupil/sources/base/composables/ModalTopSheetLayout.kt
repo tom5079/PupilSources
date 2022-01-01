@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package xyz.quaver.pupil.sources.composables
+package xyz.quaver.pupil.sources.base.composables
 
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.animateFloatAsState
@@ -41,8 +41,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.*
 import kotlinx.coroutines.launch
-import xyz.quaver.pupil.sources.composables.ModalTopSheetState.Expanded
-import xyz.quaver.pupil.sources.composables.ModalTopSheetState.Hidden
+import xyz.quaver.pupil.sources.base.composables.ModalTopSheetState.Expanded
+import xyz.quaver.pupil.sources.base.composables.ModalTopSheetState.Hidden
 import kotlin.math.roundToInt
 
 class ModalTopSheetLayoutShape(

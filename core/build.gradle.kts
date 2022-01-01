@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "xyz.quaver.pupil.sources"
-version = "0.0.1-alpha01-DEV09"
+version = "0.0.1-alpha01-DEV10"
 
 android {
     compileSdk = AndroidConfig.COMPILE_SDK
@@ -34,6 +34,7 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
+        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
 }
 
@@ -49,6 +50,12 @@ dependencies {
     implementation(Kodein.LOG)
 
     implementation(Misc.PROTOBUF)
+
+    testImplementation(Test.JUNIT)
+    androidTestImplementation(AndroidTest.JUNIT)
+    androidTestImplementation(AndroidTest.RULES)
+    androidTestImplementation(AndroidTest.RUNNER)
+    androidTestImplementation(AndroidTest.ESPRESSO)
 }
 
 val ossrhUsername: String? by project

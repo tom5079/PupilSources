@@ -18,7 +18,6 @@
 
 package xyz.quaver.pupil.sources.hitomi.lib
 
-import android.util.Log
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -40,21 +39,21 @@ const val max_node_size = 464
 const val B = 16
 const val compressed_nozomi_prefix = "n"
 
-var _tag_index_version: String? = null
-suspend fun getTagIndexVersion(client: HttpClient): String = _tag_index_version ?: getIndexVersion(client, "tagindex").also {
-    _tag_index_version = it
+private var tagIndexVersion: String? = null
+suspend fun getTagIndexVersion(client: HttpClient): String = tagIndexVersion ?: getIndexVersion(client, "tagindex").also {
+    tagIndexVersion = it
 }
 
-var _galleries_index_version: String? = null
-suspend fun getGalleriesIndexVersion(client: HttpClient): String = _galleries_index_version ?: getIndexVersion(client, "galleriesindex").also {
-    _galleries_index_version = it
+private var galleriesIndexVersion: String? = null
+suspend fun getGalleriesIndexVersion(client: HttpClient): String = galleriesIndexVersion ?: getIndexVersion(client, "galleriesindex").also {
+    galleriesIndexVersion = it
 }
 
 fun sha256(data: ByteArray) : ByteArray {
     return MessageDigest.getInstance("SHA-256").digest(data)
 }
 
-@OptIn(ExperimentalUnsignedTypes::class)
+@ExperimentalUnsignedTypes
 fun hashTerm(term: String) : UByteArray {
     return sha256(term.toByteArray()).toUByteArray().sliceArray(0 until 4)
 }
@@ -67,6 +66,7 @@ suspend fun getIndexVersion(client: HttpClient, name: String): String =
     client.get("$protocol//$domain/$name/version?_=${System.currentTimeMillis()}")
 
 //search.js
+@OptIn(ExperimentalUnsignedTypes::class)
 suspend fun getGalleryIDsForQuery(client: HttpClient, query: String) : Set<Int> {
     query.replace("_", " ").let {
         if (it.indexOf(':') > -1) {
@@ -105,6 +105,7 @@ suspend fun getGalleryIDsForQuery(client: HttpClient, query: String) : Set<Int> 
     }
 }
 
+@OptIn(ExperimentalUnsignedTypes::class)
 suspend fun getSuggestionsForQuery(client: HttpClient, query: String) : List<Suggestion> {
     query.replace('_', ' ').let {
         var field = "global"
@@ -227,6 +228,7 @@ suspend fun getGalleryIDsFromData(client: HttpClient, data: Pair<Long, Int>) : S
     return galleryIDs
 }
 
+@OptIn(ExperimentalUnsignedTypes::class)
 suspend fun getNodeAtAddress(client: HttpClient, field: String, address: Long) : Node? {
     val url =
         when(field) {
@@ -243,15 +245,13 @@ suspend fun getNodeAtAddress(client: HttpClient, field: String, address: Long) :
 
 suspend fun getURLAtRange(client: HttpClient, url: String, range: LongRange) : ByteArray = withContext(Dispatchers.IO) {
     client.get(url) {
-        headers {
-            set("Range", "bytes=${range.first}-${range.last}")
-        }
+        header("Range", "bytes=${range.first}-${range.last}")
     }
 }
 
-@OptIn(ExperimentalUnsignedTypes::class)
+@ExperimentalUnsignedTypes
 data class Node(val keys: List<UByteArray>, val datas: List<Pair<Long, Int>>, val subNodeAddresses: List<Long>)
-@OptIn(ExperimentalUnsignedTypes::class)
+@ExperimentalUnsignedTypes
 fun decodeNode(data: ByteArray) : Node {
     val buffer = ByteBuffer
         .wrap(data)
@@ -293,7 +293,7 @@ fun decodeNode(data: ByteArray) : Node {
     return Node(keys, datas, subNodeAddresses)
 }
 
-@OptIn(ExperimentalUnsignedTypes::class)
+@ExperimentalUnsignedTypes
 suspend fun bSearch(client: HttpClient, field: String, key: UByteArray, node: Node) : Pair<Long, Int>? {
     fun compareArrayBuffers(dv1: UByteArray, dv2: UByteArray) : Int {
         val top = min(dv1.size, dv2.size)

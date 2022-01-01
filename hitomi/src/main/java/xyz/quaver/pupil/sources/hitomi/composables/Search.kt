@@ -25,11 +25,11 @@ import org.kodein.di.compose.rememberInstance
 import org.kodein.di.compose.rememberViewModel
 import xyz.quaver.pupil.proto.Settings
 import xyz.quaver.pupil.sources.R
-import xyz.quaver.pupil.sources.composables.SearchBase
-import xyz.quaver.pupil.sources.composables.SubFabItem
+import xyz.quaver.pupil.sources.base.composables.SearchBase
+import xyz.quaver.pupil.sources.base.composables.SubFabItem
 import xyz.quaver.pupil.sources.hitomi.HitomiDatabase
 import xyz.quaver.pupil.sources.hitomi.HitomiSearchResultViewModel
-import xyz.quaver.pupil.sources.util.withLocalResource
+import xyz.quaver.pupil.sources.base.util.withLocalResource
 import java.util.*
 
 @ExperimentalMaterialApi
@@ -73,7 +73,7 @@ fun Search(navController: NavController) {
             },
             SubFabItem("Open with Gallery ID") {
                 withLocalResource {
-                    Icon(painterResource(R.drawable.ic_jump), contentDescription = null)
+                    Icon(painterResource(R.drawable.numeric), contentDescription = null)
                 }
             }
         ),

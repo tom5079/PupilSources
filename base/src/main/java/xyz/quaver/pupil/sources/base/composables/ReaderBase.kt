@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package xyz.quaver.pupil.sources.composables
+package xyz.quaver.pupil.sources.base.composables
 
 import android.app.Activity
 import android.app.Application
@@ -63,15 +63,13 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.accompanist.insets.LocalWindowInsets
 import com.google.accompanist.insets.rememberInsetsPaddingValues
+import com.google.common.util.concurrent.RateLimiter
 import io.ktor.client.request.*
 import io.ktor.http.*
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.takeWhile
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.kodein.di.DIAware
@@ -87,9 +85,8 @@ import xyz.quaver.graphics.subsampledimage.rememberSubSampledImageState
 import xyz.quaver.io.FileX
 import xyz.quaver.pupil.proto.ReaderOptions
 import xyz.quaver.pupil.proto.Settings
-import xyz.quaver.pupil.sources.proto.settingsDataStore
-import xyz.quaver.pupil.sources.util.FileXImageSource
-import xyz.quaver.pupil.sources.util.NetworkCache
+import xyz.quaver.pupil.sources.base.util.FileXImageSource
+import xyz.quaver.pupil.sources.core.NetworkCache
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import kotlin.math.sign
@@ -198,7 +195,7 @@ open class ReaderBaseViewModel(app: Application) : AndroidViewModel(app), DIAwar
 
     var loadJob: Job? = null
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun load(urls: List<String>, headerBuilder: HeadersBuilder.() -> Unit = { }) {
+    fun load(urls: List<String>, rateLimiter: RateLimiter? = null, headerBuilder: HeadersBuilder.() -> Unit = { }) {
         this.urls = urls
         viewModelScope.launch {
             loadJob?.cancelAndJoin()
@@ -220,6 +217,9 @@ open class ReaderBaseViewModel(app: Application) : AndroidViewModel(app), DIAwar
                 urls.forEachIndexed { index, url ->
                     when (val scheme = url.takeWhile { it != ':' }) {
                         "http", "https" -> {
+                            while (rateLimiter?.tryAcquire() == false)
+                                yield()
+
                             val (flow, file) = cache.load {
                                 url(url)
                                 headers(headerBuilder)

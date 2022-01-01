@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package xyz.quaver.pupil.sources.util
+package xyz.quaver.pupil.sources.core
 
 import android.content.Context
 import io.ktor.client.*
@@ -40,7 +40,6 @@ import org.kodein.log.LoggerFactory
 import org.kodein.log.newLogger
 import java.io.File
 import java.io.IOException
-import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors

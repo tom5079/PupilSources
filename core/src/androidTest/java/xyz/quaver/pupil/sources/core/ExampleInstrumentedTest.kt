@@ -1,4 +1,4 @@
-package xyz.quaver.pupil.sources
+package xyz.quaver.pupil.sources.core
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

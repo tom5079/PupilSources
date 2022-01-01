@@ -28,42 +28,6 @@ import org.jsoup.Jsoup
 import java.net.URLDecoder
 
 //galleryblock.js
-suspend fun fetchNozomi(
-    client: HttpClient,
-    area: String? = null,
-    tag: String = "index",
-    language: String = "all",
-    start: Int = -1,
-    count: Int = -1
-) : Pair<List<Int>, Int> = withContext(Dispatchers.IO) {
-    val url =
-        when(area) {
-            null -> "$protocol//$domain/$tag-$language$nozomiextension"
-            else -> "$protocol//$domain/$area/$tag-$language$nozomiextension"
-        }
-
-    val response: HttpResponse = client.get(url) {
-        headers {
-            if (start != -1 && count != -1) {
-                val startByte = start*4
-                val endByte = (start+count)*4-1
-
-                set("Range", "bytes=$startByte-$endByte")
-            }
-        }
-    }
-
-    val totalItems = response.headers["Content-Range"]!!
-        .replace(Regex("^[Bb]ytes \\d+-\\d+/"), "").toInt() / 4
-
-    response.readBytes().asIterable().chunked(4) {
-        (it[0].toInt() and 0xFF)          or
-        ((it[1].toInt() and 0xFF) shl 8)  or
-        ((it[2].toInt() and 0xFF) shl 16) or
-        ((it[3].toInt() and 0xFF) shl 24)
-    } to totalItems
-}
-
 @Serializable
 data class GalleryBlock(
     val id: Int,

@@ -67,4 +67,12 @@ dependencies {
     implementation(Kodein.LOG)
 
     implementation(Misc.PROTOBUF)
+
+    implementation(Misc.GUAVA)
+
+    testImplementation(Test.JUNIT)
+    androidTestImplementation(AndroidTest.JUNIT)
+    androidTestImplementation(AndroidTest.RULES)
+    androidTestImplementation(AndroidTest.RUNNER)
+    androidTestImplementation(AndroidTest.ESPRESSO)
 }

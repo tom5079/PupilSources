@@ -71,10 +71,24 @@ object Firebase {
     const val PERF = "com.google.firebase:firebase-perf-ktx"
 }
 
+object Test {
+    const val JUNIT = "junit:junit:4.13.1"
+}
+
+object AndroidTest {
+    const val CORE = "androidx.test:core:1.4.0"
+    const val JUNIT = "androidx.test.ext:junit:1.1.3"
+    const val RULES = "androidx.test:rules:1.4.0"
+    const val RUNNER = "androidx.test:runner:1.4.0"
+    const val ESPRESSO = "androidx.test.espresso:espresso-core:3.4.0"
+}
+
 object Misc {
     const val COIL_COMPOSE = "io.coil-kt:coil-compose:1.4.0"
     const val PROTOBUF = "com.google.protobuf:protobuf-javalite:3.19.1"
     const val DOCUMENTFILEX = "xyz.quaver:documentfilex:0.7.1"
     const val SUBSAMPLEDIMAGE = "xyz.quaver:subsampledimage:0.0.1-alpha19-SNAPSHOT"
     const val JSOUP = "org.jsoup:jsoup:1.14.3"
+    const val QUICKJS = "app.cash.zipline:zipline:1.0.0-SNAPSHOT"
+    const val GUAVA = "com.google.guava:guava:31.0.1-jre"
 }

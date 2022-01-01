@@ -41,9 +41,9 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberImagePainter
 import com.google.accompanist.flowlayout.FlowRow
 import xyz.quaver.pupil.sources.hitomi.HitomiSearchResult
-import xyz.quaver.pupil.sources.theme.Blue700
-import xyz.quaver.pupil.sources.theme.Orange500
-import xyz.quaver.pupil.sources.theme.Pink600
+import xyz.quaver.pupil.sources.base.theme.Blue700
+import xyz.quaver.pupil.sources.base.theme.Orange500
+import xyz.quaver.pupil.sources.base.theme.Pink600
 
 private val languageMap = mapOf(
     "indonesian" to "Bahasa Indonesia",

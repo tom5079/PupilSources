@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package xyz.quaver.pupil.sources.composables
+package xyz.quaver.pupil.sources.base.composables
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,7 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import xyz.quaver.pupil.sources.util.KeyboardManager
+import xyz.quaver.pupil.sources.base.util.KeyboardManager
 
 @Composable
 fun FloatingSearchBar(

@@ -1,4 +1,4 @@
-package xyz.quaver.pupil.sources
+package xyz.quaver.pupil.sources.base
 
 import org.junit.Test
 

@@ -1,6 +1,7 @@
 package xyz.quaver.pupil.sources.hitomi
 
 import android.app.Application
+import androidx.annotation.Keep
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.CompositionLocalProvider
@@ -17,10 +18,10 @@ import org.kodein.di.bindProvider
 import org.kodein.di.bindSingleton
 import org.kodein.di.compose.withDI
 import org.kodein.di.instance
-import xyz.quaver.pupil.sources.Source
+import xyz.quaver.pupil.sources.core.Source
 import xyz.quaver.pupil.sources.hitomi.composables.Reader
 import xyz.quaver.pupil.sources.hitomi.composables.Search
-import xyz.quaver.pupil.sources.util.LocalResourceContext
+import xyz.quaver.pupil.sources.base.util.LocalResourceContext
 
 @OptIn(ExperimentalMaterialApi::class, ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 class Hitomi(app: Application): Source(), DIAware {

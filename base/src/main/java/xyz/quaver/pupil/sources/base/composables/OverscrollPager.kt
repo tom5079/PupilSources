@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package xyz.quaver.pupil.sources.composables
+package xyz.quaver.pupil.sources.base.composables
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -49,9 +49,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.fastFirstOrNull
-import xyz.quaver.pupil.sources.extensions.R
-import xyz.quaver.pupil.sources.theme.LightBlue300
-import xyz.quaver.pupil.sources.util.withLocalResource
+import xyz.quaver.pupil.sources.base.theme.LightBlue300
+import xyz.quaver.pupil.sources.base.util.withLocalResource
+import xyz.quaver.pupil.sources.base.R
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min

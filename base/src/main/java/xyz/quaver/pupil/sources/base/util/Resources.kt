@@ -1,11 +1,7 @@
-package xyz.quaver.pupil.sources.util
+package xyz.quaver.pupil.sources.base.util
 
 import android.content.Context
-import android.content.res.Resources
-import androidx.annotation.DrawableRes
-import androidx.annotation.StringRes
 import androidx.compose.runtime.*
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 
 val LocalResourceContext = staticCompositionLocalOf<Context> {

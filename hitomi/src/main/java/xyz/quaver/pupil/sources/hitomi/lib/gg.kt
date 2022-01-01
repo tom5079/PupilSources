@@ -1,5 +1,6 @@
 package xyz.quaver.pupil.sources.hitomi.lib
 
+import app.cash.zipline.QuickJs
 import io.ktor.client.*
 import io.ktor.client.request.*
 import kotlinx.coroutines.Dispatchers
@@ -17,23 +18,19 @@ interface gg {
         private var instance: gg? = null
 
         private suspend fun getGG(client: HttpClient): gg = withContext(Dispatchers.IO) {
-            val ggjs: String = client.get("https://ltn.hitomi.la/gg.js")
+            val engine = QuickJs.create()
+
+            engine.evaluate(client.get("https://ltn.hitomi.la/gg.js"))
 
             object: gg {
-                private val oMap = Regex("""case (\d+): o = (\d+); break;""").findAll(ggjs).map { m ->
-                    m.groupValues.let { it[1].toInt() to it[2].toInt() }
-                }.toMap()
+                override fun m(g: Int): Int =
+                    engine.evaluate("gg.m($g)") as Int
 
-                override fun m(g: Int): Int {
-                    return oMap[g] ?: 0
-                }
+                override val b: String
+                    get() = engine.evaluate("gg.b") as String
 
-                override val b = Regex("b: '(.+)'").find(ggjs)?.groupValues?.get(1) ?: ""
-
-                override fun s(h: String): String {
-                    val m = Regex("(..)(.)$").find(h)!!
-                    return m.groupValues.let { (it[2]+it[1]).toInt(16).toString(10) }
-                }
+                override fun s(h: String): String =
+                    engine.evaluate("gg.s('$h')") as String
             }
         }
 

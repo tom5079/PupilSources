@@ -18,6 +18,7 @@
 
 package xyz.quaver.pupil.sources.hitomi
 
+import android.util.Log
 import android.util.LruCache
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,7 +29,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
-import xyz.quaver.pupil.sources.composables.SearchBaseViewModel
+import xyz.quaver.pupil.sources.base.composables.SearchBaseViewModel
 import xyz.quaver.pupil.sources.hitomi.lib.GalleryBlock
 import xyz.quaver.pupil.sources.hitomi.lib.doSearch
 import xyz.quaver.pupil.sources.hitomi.lib.getGalleryBlock
@@ -95,6 +96,7 @@ class HitomiSearchResultViewModel(
                                 galleryBlockCache.put(galleryID, it)
                             }
                         }.onFailure {
+                            it.printStackTrace()
                             error = true
                         }.getOrNull()?.let {
                             searchResults.add(transform(it))
