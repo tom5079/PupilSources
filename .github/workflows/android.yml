@@ -39,7 +39,7 @@ jobs:
     - name: Collect artifacts
       run: |
           mkdir apks
-          for d in */; do for apk in ${d}build/outputs/apk/release/*.apk; do [ -e $apk ] && cp $apk .; done; done
+          for d in */; do for apk in ${d}build/outputs/apk/release/*.apk; do [ -e "$apk" ] && cp "$apk" apks/; done; done
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
