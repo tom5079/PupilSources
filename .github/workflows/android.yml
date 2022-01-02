@@ -1,0 +1,48 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: set up JDK 11
+      uses: actions/setup-java@v2
+      with:
+        java-version: '11'
+        distribution: 'adopt'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+    
+    - name: Decode Keystore
+      uses: timheuer/base64-to-file@v1
+      with:
+        fileName: '/tmp/keystore.jks'
+        encodedString: ${{ secrets.KEYSTORE }}
+    
+    - name: Build with Gradle
+      run: ./gradlew :assembleRelease
+      env:
+        SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+        SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+    
+    - name: Collect artifacts
+      run: |
+          mkdir apks
+          for d in */; do for apk in ${d}build/outputs/apk/release/*.apk; do [ -e $apk ] && cp $apk .; done; done
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: Build Artifacts
+        path: apks
