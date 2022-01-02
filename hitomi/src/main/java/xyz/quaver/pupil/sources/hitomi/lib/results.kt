@@ -1,12 +1,11 @@
 package xyz.quaver.pupil.sources.hitomi.lib
 
-import io.ktor.client.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import org.kodein.di.DIAware
 import java.util.*
 
-suspend fun doSearch(
-    client: HttpClient,
+suspend fun DIAware.doSearch(
     query: String,
     sortByPopularity: Boolean = false
 ) : Set<Int> = coroutineScope {
@@ -32,7 +31,7 @@ suspend fun doSearch(
     val positiveResults = positiveTerms.map {
         async {
             runCatching {
-                getGalleryIDsForQuery(client, it)
+                getGalleryIDsForQuery(it)
             }.getOrElse { emptySet() }
         }
     }
@@ -40,14 +39,14 @@ suspend fun doSearch(
     val negativeResults = negativeTerms.map {
         async {
             runCatching {
-                getGalleryIDsForQuery(client, it)
+                getGalleryIDsForQuery(it)
             }.getOrElse { emptySet() }
         }
     }
 
     var results = when {
-        sortByPopularity -> getGalleryIDsFromNozomi(client, null, "popular", "all")
-        positiveTerms.isEmpty() -> getGalleryIDsFromNozomi(client, null, "index", "all")
+        sortByPopularity -> getGalleryIDsFromNozomi(null, "popular", "all")
+        positiveTerms.isEmpty() -> getGalleryIDsFromNozomi(null, "index", "all")
         else -> emptySet()
     }
 

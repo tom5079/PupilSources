@@ -29,6 +29,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
+import org.kodein.di.DI
+import org.kodein.di.DIAware
 import xyz.quaver.pupil.sources.base.composables.SearchBaseViewModel
 import xyz.quaver.pupil.sources.hitomi.lib.GalleryBlock
 import xyz.quaver.pupil.sources.hitomi.lib.doSearch
@@ -37,9 +39,7 @@ import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
-class HitomiSearchResultViewModel(
-    private val client: HttpClient
-) : SearchBaseViewModel<HitomiSearchResult>() {
+class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<HitomiSearchResult>(), DIAware {
     private var cachedQuery: String? = null
     private var cachedSortByPopularity: Boolean? = null
     private val cache = mutableListOf<Int>()
@@ -68,7 +68,7 @@ class HitomiSearchResultViewModel(
                     yield()
 
                     val result = runCatching {
-                        doSearch(client, query, sortByPopularity)
+                        doSearch(query, sortByPopularity)
                     }.onFailure {
                         error = true
                     }.getOrNull()
@@ -92,7 +92,7 @@ class HitomiSearchResultViewModel(
                         yield()
                         loading = false
                         kotlin.runCatching {
-                            galleryBlockCache.get(galleryID) ?: getGalleryBlock(client, galleryID).also {
+                            galleryBlockCache.get(galleryID) ?: getGalleryBlock(galleryID).also {
                                 galleryBlockCache.put(galleryID, it)
                             }
                         }.onFailure {

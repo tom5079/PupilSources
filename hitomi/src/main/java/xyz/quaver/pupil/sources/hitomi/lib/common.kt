@@ -20,10 +20,13 @@ package xyz.quaver.pupil.sources.hitomi.lib
 
 import io.ktor.client.*
 import io.ktor.client.request.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import kotlin.coroutines.suspendCoroutine
+import org.kodein.di.DIAware
+import org.kodein.di.instance
 
 const val protocol = "https:"
 
@@ -34,7 +37,9 @@ private val json = Json {
     useArrayPolymorphism = true
 }
 
-suspend fun getGalleryInfo(client: HttpClient, galleryID: Int): GalleryInfo = withContext(Dispatchers.IO) {
+suspend fun DIAware.getGalleryInfo(galleryID: Int): GalleryInfo = withContext(Dispatchers.IO) {
+    val client: HttpClient by instance()
+
     json.decodeFromString(
         client.get<String>("$protocol//$domain/galleries/$galleryID.js")
             .replace("var galleryinfo = ", "")
@@ -47,7 +52,7 @@ const val galleryblockextension = ".html"
 const val galleryblockdir = "galleryblock"
 const val nozomiextension = ".nozomi"
 
-suspend fun subdomainFromURL(client: HttpClient, url: String, base: String? = null) : String {
+suspend fun DIAware.subdomainFromURL(url: String, base: String? = null) : String {
     var retval = base ?: "b"
 
     val b = 16
@@ -58,51 +63,48 @@ suspend fun subdomainFromURL(client: HttpClient, url: String, base: String? = nu
     val g = m.groupValues.let { it[2]+it[1] }.toIntOrNull(b)
 
     if (g != null) {
-        gg.getInstance(client).let { gg ->
-            retval = (97+ gg.m(g)).toChar().toString() + retval
-        }
+        retval = (97+ gg_m(g)).toChar().toString() + retval
     }
 
     return retval
 }
-suspend fun urlFromUrl(client: HttpClient, url: String, base: String? = null) : String {
-    return url.replace(Regex("""//..?\.hitomi\.la/"""), "//${subdomainFromURL(client, url, base)}.hitomi.la/")
+suspend fun DIAware.urlFromUrl(url: String, base: String? = null) : String {
+    return url.replace(Regex("""//..?\.hitomi\.la/"""), "//${subdomainFromURL(url, base)}.hitomi.la/")
 }
 
 
-suspend fun fullPathFromHash(client: HttpClient, hash: String) : String = gg.getInstance(client).let { gg ->
-    "${gg.b}${gg.s(hash)}/$hash"
-}
+suspend fun DIAware.fullPathFromHash(hash: String) : String =
+    "${gg_b()}${gg_s(hash)}/$hash"
 
 fun realFullPathFromHash(hash: String): String =
     hash.replace(Regex("""^.*(..)(.)$"""), "$2/$1/$hash")
 
-suspend fun urlFromHash(client: HttpClient, galleryID: Int, image: GalleryFiles, dir: String? = null, ext: String? = null) : String {
+suspend fun DIAware.urlFromHash(galleryID: Int, image: GalleryFiles, dir: String? = null, ext: String? = null) : String {
     val ext = ext ?: dir ?: image.name.takeLastWhile { it != '.' }
     val dir = dir ?: "images"
-    return "https://a.hitomi.la/$dir/${fullPathFromHash(client, image.hash)}.$ext"
+    return "https://a.hitomi.la/$dir/${fullPathFromHash(image.hash)}.$ext"
 }
 
-suspend fun urlFromUrlFromHash(client: HttpClient, galleryID: Int, image: GalleryFiles, dir: String? = null, ext: String? = null, base: String? = null) =
+suspend fun DIAware.urlFromUrlFromHash(galleryID: Int, image: GalleryFiles, dir: String? = null, ext: String? = null, base: String? = null) =
     if (base == "tn")
-        urlFromUrl(client, "https://a.hitomi.la/$dir/${realFullPathFromHash(image.hash)}.$ext", base)
+        urlFromUrl("https://a.hitomi.la/$dir/${realFullPathFromHash(image.hash)}.$ext", base)
     else
-        urlFromUrl(client, urlFromHash(client, galleryID, image, dir, ext), base)
+        urlFromUrl(urlFromHash(galleryID, image, dir, ext), base)
 
-suspend fun rewriteTnPaths(client: HttpClient, html: String) =
+suspend fun DIAware.rewriteTnPaths(html: String) =
     html.replace(Regex("""//tn\.hitomi\.la/[^/]+/[0-9a-f]/[0-9a-f]{2}/[0-9a-f]{64}""")) { url ->
-        runBlocking { urlFromUrl(client, url.value, "tn") }
+        runBlocking { urlFromUrl(url.value, "tn") }
     }
 
-suspend fun imageUrlFromImage(client: HttpClient, galleryID: Int, image: GalleryFiles, noWebp: Boolean) : String {
+suspend fun DIAware.imageUrlFromImage(galleryID: Int, image: GalleryFiles, noWebp: Boolean) : String {
     return when {
         noWebp ->
-            urlFromUrlFromHash(client, galleryID, image)
+            urlFromUrlFromHash(galleryID, image)
         //image.hasavif != 0 ->
         //    urlFromUrlFromHash(galleryID, image, "avif", null, "a")
         image.haswebp != 0 ->
-            urlFromUrlFromHash(client, galleryID, image, "webp", null, "a")
+            urlFromUrlFromHash(galleryID, image, "webp", null, "a")
         else ->
-            urlFromUrlFromHash(client, galleryID, image)
+            urlFromUrlFromHash(galleryID, image)
     }
 }

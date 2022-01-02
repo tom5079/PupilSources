@@ -13,7 +13,7 @@ object Constants {
     const val applicationIdSuffix = "hitomi"
     const val sourcePath = ".Hitomi"
     const val versionCode = 1
-    const val versionName = "0.0.1-alpha01"
+    const val versionName = "0.0.1-alpha02"
 }
 
 android {
@@ -108,8 +108,6 @@ dependencies {
     implementation(Misc.PROTOBUF)
 
     implementation(Misc.JSOUP)
-
-    implementation(Misc.QUICKJS)
 
     implementation(Misc.GUAVA)
 

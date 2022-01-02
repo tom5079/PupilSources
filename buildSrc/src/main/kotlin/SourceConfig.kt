@@ -89,6 +89,5 @@ object Misc {
     const val DOCUMENTFILEX = "xyz.quaver:documentfilex:0.7.1"
     const val SUBSAMPLEDIMAGE = "xyz.quaver:subsampledimage:0.0.1-alpha19-SNAPSHOT"
     const val JSOUP = "org.jsoup:jsoup:1.14.3"
-    const val QUICKJS = "app.cash.zipline:zipline:1.0.0-SNAPSHOT"
     const val GUAVA = "com.google.guava:guava:31.0.1-jre"
 }

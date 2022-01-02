@@ -25,6 +25,8 @@ import io.ktor.client.statement.*
 import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.kodein.di.DIAware
+import org.kodein.di.instance
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.MessageDigest
@@ -40,12 +42,12 @@ const val B = 16
 const val compressed_nozomi_prefix = "n"
 
 private var tagIndexVersion: String? = null
-suspend fun getTagIndexVersion(client: HttpClient): String = tagIndexVersion ?: getIndexVersion(client, "tagindex").also {
+suspend fun DIAware.getTagIndexVersion(): String = tagIndexVersion ?: getIndexVersion("tagindex").also {
     tagIndexVersion = it
 }
 
 private var galleriesIndexVersion: String? = null
-suspend fun getGalleriesIndexVersion(client: HttpClient): String = galleriesIndexVersion ?: getIndexVersion(client, "galleriesindex").also {
+suspend fun DIAware.getGalleriesIndexVersion(): String = galleriesIndexVersion ?: getIndexVersion("galleriesindex").also {
     galleriesIndexVersion = it
 }
 
@@ -62,12 +64,14 @@ fun sanitize(input: String) : String {
     return input.replace(Regex("[/#]"), "")
 }
 
-suspend fun getIndexVersion(client: HttpClient, name: String): String =
-    client.get("$protocol//$domain/$name/version?_=${System.currentTimeMillis()}")
+suspend fun DIAware.getIndexVersion(name: String): String {
+    val client: HttpClient by instance()
+    return client.get("$protocol//$domain/$name/version?_=${System.currentTimeMillis()}")
+}
 
 //search.js
 @OptIn(ExperimentalUnsignedTypes::class)
-suspend fun getGalleryIDsForQuery(client: HttpClient, query: String) : Set<Int> {
+suspend fun DIAware.getGalleryIDsForQuery(query: String) : Set<Int> {
     query.replace("_", " ").let {
         if (it.indexOf(':') > -1) {
             val sides = it.split(":")
@@ -88,25 +92,25 @@ suspend fun getGalleryIDsForQuery(client: HttpClient, query: String) : Set<Int> 
                 }
             }
 
-            return getGalleryIDsFromNozomi(client, area, tag, language)
+            return getGalleryIDsFromNozomi(area, tag, language)
         }
 
         val key = hashTerm(it)
         val field = "galleries"
 
-        val node = getNodeAtAddress(client, field, 0) ?: return emptySet()
+        val node = getNodeAtAddress(field, 0) ?: return emptySet()
 
-        val data = bSearch(client, field, key, node)
+        val data = bSearch(field, key, node)
 
         if (data != null)
-            return getGalleryIDsFromData(client, data)
+            return getGalleryIDsFromData(data)
 
         return emptySet()
     }
 }
 
 @OptIn(ExperimentalUnsignedTypes::class)
-suspend fun getSuggestionsForQuery(client: HttpClient, query: String) : List<Suggestion> {
+suspend fun DIAware.getSuggestionsForQuery(query: String) : List<Suggestion> {
     query.replace('_', ' ').let {
         var field = "global"
         var term = it
@@ -118,24 +122,24 @@ suspend fun getSuggestionsForQuery(client: HttpClient, query: String) : List<Sug
         }
 
         val key = hashTerm(term)
-        val node = getNodeAtAddress(client, field, 0) ?: return emptyList()
-        val data = bSearch(client, field, key, node)
+        val node = getNodeAtAddress(field, 0) ?: return emptyList()
+        val data = bSearch(field, key, node)
 
         if (data != null)
-            return getSuggestionsFromData(client, field, data)
+            return getSuggestionsFromData(field, data)
 
         return emptyList()
     }
 }
 
 data class Suggestion(val s: String, val t: Int, val u: String, val n: String)
-suspend fun getSuggestionsFromData(client: HttpClient, field: String, data: Pair<Long, Int>) : List<Suggestion> {
-    val url = "$protocol//$domain/$index_dir/$field.${getTagIndexVersion(client)}.data"
+suspend fun DIAware.getSuggestionsFromData(field: String, data: Pair<Long, Int>) : List<Suggestion> {
+    val url = "$protocol//$domain/$index_dir/$field.${getTagIndexVersion()}.data"
     val (offset, length) = data
     if (length > 10000 || length <= 0)
         throw Exception("length $length is too long")
 
-    val inbuf = getURLAtRange(client, url, offset.until(offset+length))
+    val inbuf = getURLAtRange(url, offset.until(offset+length))
 
     val suggestions = ArrayList<Suggestion>()
 
@@ -174,7 +178,9 @@ suspend fun getSuggestionsFromData(client: HttpClient, field: String, data: Pair
     return suggestions
 }
 
-suspend fun getGalleryIDsFromNozomi(client: HttpClient, area: String?, tag: String, language: String) : Set<Int> = withContext(Dispatchers.IO) {
+suspend fun DIAware.getGalleryIDsFromNozomi(area: String?, tag: String, language: String) : Set<Int> = withContext(Dispatchers.IO) {
+    val client: HttpClient by instance()
+
     val nozomiAddress =
         when(area) {
             null -> "$protocol//$domain/$compressed_nozomi_prefix/$tag-$language$nozomiextension"
@@ -199,13 +205,13 @@ suspend fun getGalleryIDsFromNozomi(client: HttpClient, area: String?, tag: Stri
     nozomi
 }
 
-suspend fun getGalleryIDsFromData(client: HttpClient, data: Pair<Long, Int>) : Set<Int> {
-    val url = "$protocol//$domain/$galleries_index_dir/galleries.${getGalleriesIndexVersion(client)}.data"
+suspend fun DIAware.getGalleryIDsFromData(data: Pair<Long, Int>) : Set<Int> {
+    val url = "$protocol//$domain/$galleries_index_dir/galleries.${getGalleriesIndexVersion()}.data"
     val (offset, length) = data
     if (length > 100000000 || length <= 0)
         throw Exception("length $length is too long")
 
-    val inbuf = getURLAtRange(client, url, offset.until(offset+length))
+    val inbuf = getURLAtRange(url, offset.until(offset+length))
 
     val galleryIDs = mutableSetOf<Int>()
 
@@ -229,21 +235,23 @@ suspend fun getGalleryIDsFromData(client: HttpClient, data: Pair<Long, Int>) : S
 }
 
 @OptIn(ExperimentalUnsignedTypes::class)
-suspend fun getNodeAtAddress(client: HttpClient, field: String, address: Long) : Node? {
+suspend fun DIAware.getNodeAtAddress(field: String, address: Long) : Node? {
     val url =
         when(field) {
-            "galleries" -> "$protocol//$domain/$galleries_index_dir/galleries.${getGalleriesIndexVersion(client)}.index"
-            "languages" -> "$protocol//$domain/$galleries_index_dir/languages.${getGalleriesIndexVersion(client)}.index"
-            "nozomiurl" -> "$protocol//$domain/$galleries_index_dir/nozomiurl.${getGalleriesIndexVersion(client)}.index"
-            else -> "$protocol//$domain/$index_dir/$field.${getTagIndexVersion(client)}.index"
+            "galleries" -> "$protocol//$domain/$galleries_index_dir/galleries.${getGalleriesIndexVersion()}.index"
+            "languages" -> "$protocol//$domain/$galleries_index_dir/languages.${getGalleriesIndexVersion()}.index"
+            "nozomiurl" -> "$protocol//$domain/$galleries_index_dir/nozomiurl.${getGalleriesIndexVersion()}.index"
+            else -> "$protocol//$domain/$index_dir/$field.${getTagIndexVersion()}.index"
         }
 
-    val nodedata = getURLAtRange(client, url, address.until(address+max_node_size))
+    val nodedata = getURLAtRange(url, address.until(address+max_node_size))
 
     return decodeNode(nodedata)
 }
 
-suspend fun getURLAtRange(client: HttpClient, url: String, range: LongRange) : ByteArray = withContext(Dispatchers.IO) {
+suspend fun DIAware.getURLAtRange(url: String, range: LongRange) : ByteArray = withContext(Dispatchers.IO) {
+    val client: HttpClient by instance()
+
     client.get(url) {
         header("Range", "bytes=${range.first}-${range.last}")
     }
@@ -294,7 +302,7 @@ fun decodeNode(data: ByteArray) : Node {
 }
 
 @ExperimentalUnsignedTypes
-suspend fun bSearch(client: HttpClient, field: String, key: UByteArray, node: Node) : Pair<Long, Int>? {
+suspend fun DIAware.bSearch(field: String, key: UByteArray, node: Node) : Pair<Long, Int>? {
     fun compareArrayBuffers(dv1: UByteArray, dv2: UByteArray) : Int {
         val top = min(dv1.size, dv2.size)
 
@@ -336,6 +344,6 @@ suspend fun bSearch(client: HttpClient, field: String, key: UByteArray, node: No
     else if (isLeaf(node))
         return null
 
-    val nextNode = getNodeAtAddress(client, field, node.subNodeAddresses[where]) ?: return null
-    return bSearch(client, field, key, nextNode)
+    val nextNode = getNodeAtAddress(field, node.subNodeAddresses[where]) ?: return null
+    return bSearch(field, key, nextNode)
 }

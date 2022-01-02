@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,6 +29,7 @@ import com.google.accompanist.insets.ui.TopAppBar
 import com.google.common.util.concurrent.RateLimiter
 import io.ktor.client.*
 import kotlinx.coroutines.launch
+import org.kodein.di.compose.localDI
 import org.kodein.di.compose.rememberInstance
 import xyz.quaver.pupil.sources.R
 import xyz.quaver.pupil.sources.base.composables.ReaderBase
@@ -47,6 +49,7 @@ import xyz.quaver.pupil.sources.base.util.withLocalResource
 fun Reader(navController: NavController) {
     val model: ReaderBaseViewModel = viewModel()
 
+    val localDI = localDI()
     val client: HttpClient by rememberInstance()
 
     val database: HitomiDatabase by rememberInstance()
@@ -63,9 +66,9 @@ fun Reader(navController: NavController) {
         runCatching {
             val galleryID = itemID!!.toInt()
 
-            value = getGalleryInfo(client, galleryID).also {
+            value = with(localDI) { getGalleryInfo(galleryID) }.also {
                 model.load(
-                    it.files.map { imageUrlFromImage(client, galleryID, it, false) },
+                    it.files.map { with(localDI) { imageUrlFromImage(galleryID, it, false) } },
                     RateLimiter.create(2.0)
                 ) {
                     append("Referer", getReferer(galleryID))

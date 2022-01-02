@@ -25,6 +25,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
+import org.kodein.di.DIAware
+import org.kodein.di.instance
 import java.net.URLDecoder
 
 //galleryblock.js
@@ -41,10 +43,12 @@ data class GalleryBlock(
     val relatedTags: List<String>
 )
 
-suspend fun getGalleryBlock(client: HttpClient, galleryID: Int) : GalleryBlock = withContext(Dispatchers.IO) {
+suspend fun DIAware.getGalleryBlock(galleryID: Int) : GalleryBlock = withContext(Dispatchers.IO) {
+    val client: HttpClient by instance()
+
     val url = "$protocol//$domain/$galleryblockdir/$galleryID$extension"
 
-    val doc = Jsoup.parse(rewriteTnPaths(client, client.get(url)))
+    val doc = Jsoup.parse(rewriteTnPaths(client.get(url)))
 
     val galleryUrl = doc.selectFirst("h1 > a")!!.attr("href")
 

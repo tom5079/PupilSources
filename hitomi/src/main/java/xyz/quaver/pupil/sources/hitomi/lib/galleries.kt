@@ -24,6 +24,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
+import org.kodein.di.DIAware
+import org.kodein.di.instance
 import java.net.URLDecoder
 
 @Serializable
@@ -41,7 +43,9 @@ data class Gallery(
     val tags: List<String>,
     val thumbnails: List<String>
 )
-suspend fun getGallery(client: HttpClient, galleryID: Int) : Gallery = withContext(Dispatchers.IO) {
+suspend fun DIAware.getGallery(galleryID: Int) : Gallery = withContext(Dispatchers.IO) {
+    val client: HttpClient by instance()
+
     val url = Jsoup.parse(client.get("https://hitomi.la/galleries/$galleryID.html"))
         .select("link").attr("href")
 
@@ -76,8 +80,8 @@ suspend fun getGallery(client: HttpClient, galleryID: Int) : Gallery = withConte
         href.slice(5 until href.indexOf('-'))
     }
 
-    val thumbnails = getGalleryInfo(client, galleryID).files.map { galleryInfo ->
-        urlFromUrlFromHash(client, galleryID, galleryInfo, "smalltn", "jpg", "tn")
+    val thumbnails = getGalleryInfo(galleryID).files.map { galleryInfo ->
+        urlFromUrlFromHash(galleryID, galleryInfo, "smalltn", "jpg", "tn")
     }
 
     Gallery(related, langList, cover, title, artists, groups, type, language, series, characters, tags, thumbnails)
