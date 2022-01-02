@@ -25,6 +25,9 @@ jobs:
         fileName: 'keystore.jks'
         fileDir: '/tmp/'
         encodedString: ${{ secrets.KEYSTORE }}
+      
+    - name: Check if key exists
+      run: test -e /tmp/keystore.jks
     
     - name: Build with Gradle
       run: ./gradlew :assembleRelease
