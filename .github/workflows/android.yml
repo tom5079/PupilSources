@@ -40,4 +40,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Build Artifacts
-        path: */build/outputs/apk/release/*.apk
+        path: '*/build/outputs/apk/release/*.apk'
