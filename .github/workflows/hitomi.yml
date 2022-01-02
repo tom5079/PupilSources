@@ -1,6 +1,16 @@
 name: Android CI
 
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'hitomi/**'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'hitomi/**'
 
 jobs:
   build:
