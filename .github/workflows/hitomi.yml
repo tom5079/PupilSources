@@ -1,12 +1,8 @@
 name: Android CI
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - master
-    paths:
-      - 'hitomi/**'
-  pull_request:
     branches:
       - master
     paths:
@@ -49,5 +45,5 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: Build Artifacts
-        path: '*/build/outputs/apk/release/*.apk'
+        name: apk
+        path: 'hitomi/build/outputs/apk/release/*.apk'
