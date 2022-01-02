@@ -42,8 +42,8 @@ jobs:
         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
     
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+    - name: Release
+      uses: softprops/action-gh-release@v1
       with:
-        name: apk
-        path: 'hitomi/build/outputs/apk/release/hitomi-release.apk'
+        body_path: 'hitomi/build/outputs/apk/release/output-metadata.json'
+        files: 'hitomi/build/outputs/apk/release/hitomi-release.apk'
