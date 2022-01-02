@@ -43,11 +43,11 @@ jobs:
       id: tag
       run: |
         cd hitomi/build/outputs/apk/release/
-        echo "::set-output tag=$(cat output-metadata.json | jq -r '(.applicationId + "-" + .elements[0].versionName)' | sed 's/xyz.quaver.pupil.sources.//')"
+        echo "::set-output name=tag::$(cat output-metadata.json | jq -r '(.applicationId + "-" + .elements[0].versionName)' | sed 's/xyz.quaver.pupil.sources.//')"
     
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: 'test'
+        tag_name: ${{ steps.tag.outputs.tag }}
         body_path: 'hitomi/build/outputs/apk/release/output-metadata.json'
         files: 'hitomi/build/outputs/apk/release/hitomi-release.apk'
