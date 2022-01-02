@@ -48,6 +48,6 @@ jobs:
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.tag.outputs.tag }}
+        tag_name: 'test'
         body_path: 'hitomi/build/outputs/apk/release/output-metadata.json'
         files: 'hitomi/build/outputs/apk/release/hitomi-release.apk'
