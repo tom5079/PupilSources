@@ -44,11 +44,11 @@ class ExampleInstrumentedTest {
 
     @Test
     fun testImages() {
-        val ratelimiter = RateLimiter.create(2.0)
+        val ratelimiter = RateLimiter.create(5.0)
 
         val testCases = listOf(
-            2099617,
-            2100172
+            2101652,
+            2099617
         )
 
         runBlocking {

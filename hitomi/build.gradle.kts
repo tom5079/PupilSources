@@ -8,12 +8,12 @@ plugins {
     id("com.google.protobuf")
 }
 
-extra.apply {
-    set("sourceName", "hitomi.la")
-    set("applicationIdSuffix", "hitomi")
-    set("sourcePath", ".Hitomi")
-    set("versionCode", 1)
-    set("versionName", "0.0.1-alpha01")
+object Constants {
+    const val sourceName = "hitomi.la"
+    const val applicationIdSuffix = "hitomi"
+    const val sourcePath = ".Hitomi"
+    const val versionCode = 1
+    const val versionName = "0.0.1-alpha01"
 }
 
 android {
@@ -29,15 +29,15 @@ android {
     }
 
     defaultConfig {
-        applicationIdSuffix = extra["applicationIdSuffix"] as String
+        applicationIdSuffix = Constants.applicationIdSuffix
         minSdk = AndroidConfig.MIN_SDK
         targetSdk = AndroidConfig.TARGET_SDK
-        versionCode = extra["versionCode"] as Int
-        versionName = extra["versionName"] as String
+        versionCode = Constants.versionCode
+        versionName = Constants.versionName
 
         manifestPlaceholders.apply {
-            put("sourceName", "[Pupil] ${extra["sourceName"]}")
-            put("sourcePath", extra["sourcePath"]!!)
+            put("sourceName", "[Pupil] ${Constants.sourceName}")
+            put("sourcePath", Constants.sourcePath)
         }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -51,6 +51,7 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
