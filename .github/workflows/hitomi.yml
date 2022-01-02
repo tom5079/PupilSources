@@ -36,7 +36,7 @@ jobs:
       run: test -e /tmp/keystore.jks
     
     - name: Build with Gradle
-      run: ./gradlew :assembleRelease
+      run: ./gradlew hitomi:assembleRelease
       env:
         SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
@@ -46,4 +46,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: apk
-        path: 'hitomi/build/outputs/apk/release/*.apk'
+        path: 'hitomi/build/outputs/apk/release/hitomi-release.apk'
