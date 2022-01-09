@@ -1,3 +1,7 @@
 {
-    "hitomi.la": "0.0.1-alpha04"
+    "hitomi.la": {
+        "projectName": "hitomi",
+        "name": "hitomi.la",
+        "version": "0.0.1-alpha05"
+    }
 }
