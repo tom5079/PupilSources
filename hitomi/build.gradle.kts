@@ -15,7 +15,7 @@ object Constants {
     const val applicationIdSuffix = "hitomi"
     const val sourcePath = ".Hitomi"
     const val versionCode = 1
-    const val versionName = "0.0.1-alpha04"
+    const val versionName = "0.0.1-alpha05"
 }
 
 android {
@@ -96,7 +96,11 @@ tasks.register("updateVersionLedger") {
             (JsonSlurper().parse(ledgerFile) as Map<*, *>).toMutableMap()
         }.getOrDefault(mutableMapOf())
 
-        ledger[Constants.sourceName] = Constants.versionName
+        ledger[Constants.sourceName] = mapOf(
+            "projectName" to project.name,
+            "name" to Constants.sourceName,
+            "version" to Constants.versionName
+        )
 
         ledgerFile.writeText(JsonBuilder(ledger).toPrettyString())
     }
