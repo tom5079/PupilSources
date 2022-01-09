@@ -1,4 +1,6 @@
 import com.google.protobuf.gradle.*
+import groovy.json.JsonBuilder
+import groovy.json.JsonSlurper
 
 plugins {
     id("com.android.application")
@@ -13,7 +15,7 @@ object Constants {
     const val applicationIdSuffix = "hitomi"
     const val sourcePath = ".Hitomi"
     const val versionCode = 1
-    const val versionName = "0.0.1-alpha02"
+    const val versionName = "0.0.1-alpha03"
 }
 
 android {
@@ -65,6 +67,44 @@ android {
     }
     composeOptions {
         kotlinCompilerExtensionVersion = Versions.JETPACK_COMPOSE
+    }
+}
+
+tasks.register("generateApkMetadata") {
+    doLast {
+        val apkDir =
+            android.applicationVariants.first { it.name == "release" }
+                .outputs.first().outputFile.parentFile
+
+        val metadata = mapOf(
+            "name" to Constants.sourceName,
+            "version" to Constants.versionName
+        )
+
+        val jsonFile = File(apkDir, "metadata.json")
+
+        jsonFile.writeText(JsonBuilder(metadata).toString())
+    }
+}
+
+tasks.register("updateVersionLedger") {
+    doLast {
+        val ledgerFile = File(rootDir, "versions.json")
+
+        val ledger = runCatching {
+            (JsonSlurper().parse(ledgerFile) as Map<*, *>).toMutableMap()
+        }.getOrDefault(mutableMapOf())
+        
+        ledger[Constants.sourceName] = Constants.versionName
+
+        ledgerFile.writeText(JsonBuilder(ledger).toPrettyString())
+    }
+}
+
+afterEvaluate {
+    tasks.findByName("assembleRelease")?.apply {
+        finalizedBy("generateApkMetadata")
+        finalizedBy("updateVersionLedger")
     }
 }
 

@@ -15,6 +15,9 @@ import org.junit.runner.RunWith
 
 import org.junit.Assert.*
 import org.junit.Before
+import org.kodein.di.DI
+import org.kodein.di.DIAware
+import org.kodein.di.bindSingleton
 import xyz.quaver.pupil.sources.hitomi.lib.getGalleryInfo
 import xyz.quaver.pupil.sources.hitomi.lib.imageUrlFromImage
 
@@ -24,14 +27,13 @@ import xyz.quaver.pupil.sources.hitomi.lib.imageUrlFromImage
  * See [testing documentation](http://d.android.com/tools/testing).
  */
 @RunWith(AndroidJUnit4::class)
-class ExampleInstrumentedTest {
+class ExampleInstrumentedTest: DIAware {
 
-    lateinit var client: HttpClient
-
-    @Before
-    fun init() {
-        client = HttpClient() {
-            BrowserUserAgent()
+    override val di by DI.lazy {
+        bindSingleton {
+            HttpClient() {
+                BrowserUserAgent()
+            }
         }
     }
 
@@ -40,39 +42,5 @@ class ExampleInstrumentedTest {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals("xyz.quaver.pupil.sources.hitomi", appContext.packageName)
-    }
-
-    @Test
-    fun testImages() {
-        val ratelimiter = RateLimiter.create(5.0)
-
-        val testCases = listOf(
-            2101652,
-            2099617
-        )
-
-        runBlocking {
-            testCases.forEach { galleryID ->
-                val galleryInfo = getGalleryInfo(client, galleryID)
-
-                val images = galleryInfo.files.flatMap {
-                    listOf(
-                        imageUrlFromImage(client, galleryID, it, true),
-                        imageUrlFromImage(client, galleryID, it, false)
-                    )
-                }
-
-                images.forEachIndexed { i, it ->
-                    ratelimiter.acquire()
-                    println("Requesting $i/${images.size}")
-                    val response: HttpResponse = client.get(it) {
-                        header("Referer", "https://hitomi.la/")
-                    }
-
-                    assertEquals(200, response.status.value)
-                    println("Passed $i/${images.size}")
-                }
-            }
-        }
     }
 }
