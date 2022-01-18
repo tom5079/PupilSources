@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.runtime.*
@@ -19,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.datastore.core.DataStore
-import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import org.kodein.di.compose.rememberInstance
 import org.kodein.di.compose.rememberViewModel
@@ -35,7 +33,7 @@ import java.util.*
 @ExperimentalMaterialApi
 @ExperimentalFoundationApi
 @Composable
-fun Search(navController: NavController) {
+fun Search(navigateToReader: (itemID: String) -> Unit) {
     val model: HitomiSearchResultViewModel by rememberViewModel()
     val database: HitomiDatabase by rememberInstance()
     val favoritesDao = remember { database.favoritesDao() }
@@ -94,9 +92,9 @@ fun Search(navController: NavController) {
                 Icon(Icons.Default.Sort, contentDescription = null)
             }
 
-            IconButton(onClick = { navController.navigate("settings") }) {
-                Icon(Icons.Default.Settings, contentDescription = null)
-            }
+//            IconButton(onClick = { navController.navigate("settings") }) {
+//                Icon(Icons.Default.Settings, contentDescription = null)
+//            }
 
             val onClick: (Boolean?) -> Unit = {
                 expanded = false
@@ -144,9 +142,9 @@ fun Search(navController: NavController) {
                             if (it in favoritesSet) favoritesDao.delete(it)
                             else favoritesDao.insert(it)
                         }
-                    }
+                    },
                 ) { result ->
-                    navController.navigate("hitomi.la/reader/${result.itemID}")
+                    navigateToReader(result.itemID)
                 }
             }
         }

@@ -1,10 +1,9 @@
 package xyz.quaver.pupil.sources.core
 
-import androidx.annotation.Keep
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
+import androidx.compose.runtime.Composable
+import org.kodein.di.DIAware
 
-abstract class Source {
-    abstract val name: String
-    abstract fun NavGraphBuilder.navGraph(navController: NavController)
+abstract class Source: DIAware {
+    @Composable
+    abstract fun Entry()
 }

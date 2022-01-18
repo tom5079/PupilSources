@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "xyz.quaver.pupil.sources"
-version = "0.0.1-alpha01-DEV10"
+version = "0.0.1-alpha01-DEV12"
 
 android {
     compileSdk = AndroidConfig.COMPILE_SDK
@@ -105,10 +105,15 @@ afterEvaluate {
 
         repositories {
             maven {
-                val releasesRepoUrl = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
-                val snapshotRepoUrl = uri("https://oss.sonatype.org/content/repositories/snapshots/")
+                val releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+                val snapshotRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
 
-                url = if (version.toString().endsWith("SNAPSHOT")) snapshotRepoUrl else releasesRepoUrl
+                setUrl(
+                    if (version.toString().endsWith("SNAPSHOT"))
+                        snapshotRepoUrl
+                    else
+                        releasesRepoUrl
+                )
 
                 credentials {
                     username = ossrhUsername

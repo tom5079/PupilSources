@@ -47,12 +47,9 @@ import kotlin.text.toByteArray
 
 private const val CACHE_LIMIT = 100*1024*1024 // 100M
 
-class NetworkCache(context: Context) : DIAware {
-    override val di by closestDI(context)
-
+class NetworkCache(context: Context, private val client: HttpClient) {
     private val logger = newLogger(LoggerFactory.default)
 
-    private val client: HttpClient by instance()
     private val networkScope = CoroutineScope(Executors.newFixedThreadPool(4).asCoroutineDispatcher())
 
     private val cacheDir = File(context.cacheDir, "networkcache")

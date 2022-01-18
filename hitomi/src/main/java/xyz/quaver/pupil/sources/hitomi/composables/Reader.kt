@@ -46,25 +46,20 @@ import xyz.quaver.pupil.sources.base.util.withLocalResource
 @ExperimentalMaterialApi
 @ExperimentalComposeUiApi
 @Composable
-fun Reader(navController: NavController) {
+fun Reader(itemID: String) {
     val model: ReaderBaseViewModel = viewModel()
 
     val localDI = localDI()
-    val client: HttpClient by rememberInstance()
 
     val database: HitomiDatabase by rememberInstance()
     val favoritesDao = remember { database.favoritesDao() }
 
     val coroutineScope = rememberCoroutineScope()
 
-    val itemID = navController.currentBackStackEntry?.arguments?.getString("itemID")
-
-    if (itemID == null) model.error = true
-
-    val isFavorite by favoritesDao.contains(itemID ?: "").collectAsState(false)
+    val isFavorite by favoritesDao.contains(itemID).collectAsState(false)
     val galleryInfo by produceState<GalleryInfo?>(null) {
         runCatching {
-            val galleryID = itemID!!.toInt()
+            val galleryID = itemID.toInt()
 
             value = with(localDI) { getGalleryInfo(galleryID) }.also {
                 model.load(
@@ -79,9 +74,8 @@ fun Reader(navController: NavController) {
         }
     }
 
-    BackHandler {
-        if (model.fullscreen) model.fullscreen = false
-        else navController.popBackStack()
+    BackHandler(enabled = model.fullscreen) {
+        model.fullscreen = false
     }
 
     Scaffold(
@@ -109,11 +103,9 @@ fun Reader(navController: NavController) {
                         }
 
                         IconButton(onClick = {
-                            itemID?.let {
-                                coroutineScope.launch {
-                                    if (isFavorite) favoritesDao.delete(it)
-                                    else            favoritesDao.insert(it)
-                                }
+                            coroutineScope.launch {
+                                if (isFavorite) favoritesDao.delete(itemID)
+                                else            favoritesDao.insert(itemID)
                             }
                         }) {
                             Icon(
