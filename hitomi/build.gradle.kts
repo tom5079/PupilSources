@@ -11,11 +11,11 @@ plugins {
 }
 
 object Constants {
-    const val sourceName = "hitomi.la"
+    const val packageName = "hitomi.la"
     const val applicationIdSuffix = "hitomi"
-    const val sourcePath = ".Hitomi"
+    const val sources = "hitomi.la:.Hitomi"
     const val versionCode = 1
-    const val versionName = "0.0.1-alpha07"
+    const val versionName = "0.0.1-alpha08"
 }
 
 android {
@@ -38,8 +38,8 @@ android {
         versionName = Constants.versionName
 
         manifestPlaceholders.apply {
-            put("sourceName", "[Pupil] ${Constants.sourceName}")
-            put("sourcePath", Constants.sourcePath)
+            put("sourceName", "[Pupil] ${Constants.packageName}")
+            put("sources", Constants.sources)
         }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -78,7 +78,7 @@ tasks.register("generateApkMetadata") {
 
         val metadata = mapOf(
             "projectName" to project.name,
-            "name" to Constants.sourceName,
+            "name" to Constants.packageName,
             "version" to Constants.versionName
         )
 
@@ -96,9 +96,9 @@ tasks.register("updateVersionLedger") {
             (JsonSlurper().parse(ledgerFile) as Map<*, *>).toMutableMap()
         }.getOrDefault(mutableMapOf())
 
-        ledger[Constants.sourceName] = mapOf(
+        ledger[Constants.packageName] = mapOf(
             "projectName" to project.name,
-            "name" to Constants.sourceName,
+            "name" to Constants.packageName,
             "version" to Constants.versionName
         )
 
