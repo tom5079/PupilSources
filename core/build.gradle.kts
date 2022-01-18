@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "xyz.quaver.pupil.sources"
-version = "0.0.1-alpha01-DEV12"
+version = "0.0.1-alpha01-DEV13"
 
 android {
     compileSdk = AndroidConfig.COMPILE_SDK

@@ -26,6 +26,7 @@ import xyz.quaver.pupil.sources.hitomi.composables.Search
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterialApi::class, ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 class Hitomi(app: Application): Source(), DIAware {
+    override val name = "hitomi.la"
 
     private val packageName = "xyz.quaver.pupil.sources.hitomi"
     private val resourceContext = app.createPackageContext(packageName, 0)
