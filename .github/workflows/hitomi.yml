@@ -55,10 +55,11 @@ jobs:
           git config --global user.email 'tom5079@naver.com'
           git fetch
           git add versions.json
-          git commit -am "Version update"
+          git commit -m "Version update"
           git checkout gh-pages
           git checkout master versions.json
-          git commit -am "Version update"
+          git add versions.json
+          git commit -m "Version update"
           git push --all
     
     - name: Release
