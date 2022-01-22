@@ -11,7 +11,7 @@
         android:allowBackup="false"
         android:label="${sourceName}">
 
-        <meta-data android:name="pupil.sources.path" android:value="${sourcePath}" />
+        <meta-data android:name="pupil.sources.path" android:value="${sources}" />
 
     </application>
 
