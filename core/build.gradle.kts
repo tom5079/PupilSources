@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "xyz.quaver.pupil.sources"
-version = "0.0.1-alpha01-DEV15"
+version = "0.0.1-alpha01-DEV16"
 
 android {
     compileSdk = AndroidConfig.COMPILE_SDK
@@ -27,6 +27,12 @@ android {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
+    }
+    buildFeatures {
+        compose = true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion = Versions.JETPACK_COMPOSE
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
