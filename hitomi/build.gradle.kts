@@ -60,7 +60,7 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
-        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
+        freeCompilerArgs = freeCompilerArgs + "-Xopt-in=kotlin.RequiresOptIn"
     }
     buildFeatures {
         compose = true
@@ -153,8 +153,6 @@ dependencies {
     implementation(Misc.PROTOBUF)
 
     implementation(Misc.JSOUP)
-
-    implementation(Misc.GUAVA)
 
     testImplementation(Test.JUNIT)
     androidTestImplementation(AndroidTest.JUNIT)

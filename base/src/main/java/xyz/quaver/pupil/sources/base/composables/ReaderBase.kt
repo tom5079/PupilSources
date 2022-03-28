@@ -60,18 +60,23 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.datastore.core.DataStore
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.accompanist.insets.LocalWindowInsets
 import com.google.accompanist.insets.rememberInsetsPaddingValues
-import com.google.common.util.concurrent.RateLimiter
+import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.kodein.di.DI
 import org.kodein.di.DIAware
 import org.kodein.di.android.closestDI
 import org.kodein.di.compose.rememberInstance
@@ -169,12 +174,11 @@ val DoubleImage: ImageVector
         return _doubleImage!!
     }
 
-open class ReaderBaseViewModel(app: Application) : AndroidViewModel(app), DIAware {
-    override val di by closestDI(app)
-
+open class ReaderBaseViewModel(override val di: DI) : ViewModel(), DIAware {
     private val logger = newLogger(LoggerFactory.default)
 
     private val cache: NetworkCache by instance()
+    private val client: HttpClient by instance()
 
     var fullscreen by mutableStateOf(false)
 
@@ -191,11 +195,10 @@ open class ReaderBaseViewModel(app: Application) : AndroidViewModel(app), DIAwar
     var totalProgress by mutableStateOf(0)
         private set
 
-    private var urls: List<String>? = null
+    private var urls: List<String> = emptyList()
 
     var loadJob: Job? = null
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun load(urls: List<String>, rateLimiter: RateLimiter? = null, headerBuilder: HeadersBuilder.() -> Unit = { }) {
+    fun load(urls: List<String>, headerBuilder: HeadersBuilder.() -> Unit = { }) {
         this.urls = urls
         viewModelScope.launch {
             loadJob?.cancelAndJoin()
@@ -217,13 +220,10 @@ open class ReaderBaseViewModel(app: Application) : AndroidViewModel(app), DIAwar
                 urls.forEachIndexed { index, url ->
                     when (val scheme = url.takeWhile { it != ':' }) {
                         "http", "https" -> {
-                            while (rateLimiter?.tryAcquire() == false)
-                                yield()
-
-                            val (flow, file) = cache.load {
+                            val (flow, file) = cache.run { client.load {
                                 url(url)
                                 headers(headerBuilder)
-                            }
+                            } }
 
                             imageList[index] = Uri.fromFile(file)
                             progressCollectJobs[index] = launch {
@@ -259,7 +259,7 @@ open class ReaderBaseViewModel(app: Application) : AndroidViewModel(app), DIAwar
     }
 
     override fun onCleared() {
-        urls?.let { cache.free(it) }
+        cache.free(urls)
         cache.cleanup()
     }
 }
@@ -332,6 +332,7 @@ fun ReaderOptionsSheet(readerOptions: ReaderOptions, onOptionsChange: (ReaderOpt
             )
             val animationRotation by animateFloatAsState(if (isVertical) 90f else 0f)
 
+            @Suppress("NAME_SHADOWING")
             val setOrientation: (Boolean, Boolean) -> Unit = { isVertical, isReverse ->
                 val orientation = when {
                     isVertical && !isReverse -> ReaderOptions.Orientation.VERTICAL_DOWN

@@ -1,32 +1,27 @@
 /*
- *     Pupil, Hitomi.la viewer for Android
- *     Copyright (C) 2021 tom5079
+ *    Copyright 2019 tom5079
  *
- *     This program is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
  *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
  */
 
 package xyz.quaver.pupil.sources.hitomi.lib
 
 import io.ktor.client.*
-import io.ktor.client.call.*
+import io.ktor.client.features.*
 import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.kodein.di.DIAware
-import org.kodein.di.instance
+import java.net.URL
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.MessageDigest
@@ -41,21 +36,25 @@ const val max_node_size = 464
 const val B = 16
 const val compressed_nozomi_prefix = "n"
 
-private var tagIndexVersion: String? = null
-suspend fun DIAware.getTagIndexVersion(): String = tagIndexVersion ?: getIndexVersion("tagindex").also {
-    tagIndexVersion = it
+private var tag_index_version: String? = null
+suspend fun HttpClient.getTagIndexVersion(): String = withContext(Dispatchers.IO) {
+    tag_index_version ?: getIndexVersion("tagindex").also {
+        tag_index_version = it
+    }
 }
 
-private var galleriesIndexVersion: String? = null
-suspend fun DIAware.getGalleriesIndexVersion(): String = galleriesIndexVersion ?: getIndexVersion("galleriesindex").also {
-    galleriesIndexVersion = it
+private var galleries_index_version: String? = null
+suspend fun HttpClient.getGalleriesIndexVersion(): String = withContext(Dispatchers.IO) {
+    galleries_index_version ?: getIndexVersion("galleriesindex").also {
+        galleries_index_version = it
+    }
 }
 
 fun sha256(data: ByteArray) : ByteArray {
     return MessageDigest.getInstance("SHA-256").digest(data)
 }
 
-@ExperimentalUnsignedTypes
+@OptIn(ExperimentalUnsignedTypes::class)
 fun hashTerm(term: String) : UByteArray {
     return sha256(term.toByteArray()).toUByteArray().sliceArray(0 until 4)
 }
@@ -64,14 +63,12 @@ fun sanitize(input: String) : String {
     return input.replace(Regex("[/#]"), "")
 }
 
-suspend fun DIAware.getIndexVersion(name: String): String {
-    val client: HttpClient by instance()
-    return client.get("$protocol//$domain/$name/version?_=${System.currentTimeMillis()}")
-}
+suspend fun HttpClient.getIndexVersion(name: String): String =
+        get("$protocol//$domain/$name/version?_=${System.currentTimeMillis()}")
 
 //search.js
 @OptIn(ExperimentalUnsignedTypes::class)
-suspend fun DIAware.getGalleryIDsForQuery(query: String) : Set<Int> {
+suspend fun HttpClient.getGalleryIDsForQuery(query: String) : Set<Int> {
     query.replace("_", " ").let {
         if (it.indexOf(':') > -1) {
             val sides = it.split(":")
@@ -98,7 +95,7 @@ suspend fun DIAware.getGalleryIDsForQuery(query: String) : Set<Int> {
         val key = hashTerm(it)
         val field = "galleries"
 
-        val node = getNodeAtAddress(field, 0) ?: return emptySet()
+        val node = getNodeAtAddress(field, 0)
 
         val data = bSearch(field, key, node)
 
@@ -110,7 +107,7 @@ suspend fun DIAware.getGalleryIDsForQuery(query: String) : Set<Int> {
 }
 
 @OptIn(ExperimentalUnsignedTypes::class)
-suspend fun DIAware.getSuggestionsForQuery(query: String) : List<Suggestion> {
+suspend fun HttpClient.getSuggestionsForQuery(query: String) : List<Suggestion> {
     query.replace('_', ' ').let {
         var field = "global"
         var term = it
@@ -133,7 +130,7 @@ suspend fun DIAware.getSuggestionsForQuery(query: String) : List<Suggestion> {
 }
 
 data class Suggestion(val s: String, val t: Int, val u: String, val n: String)
-suspend fun DIAware.getSuggestionsFromData(field: String, data: Pair<Long, Int>) : List<Suggestion> {
+suspend fun HttpClient.getSuggestionsFromData(field: String, data: Pair<Long, Int>) : List<Suggestion> {
     val url = "$protocol//$domain/$index_dir/$field.${getTagIndexVersion()}.data"
     val (offset, length) = data
     if (length > 10000 || length <= 0)
@@ -166,11 +163,11 @@ suspend fun DIAware.getSuggestionsFromData(field: String, data: Pair<Long, Int>)
 
         val tagname = sanitize(tag)
         val u =
-            when(ns) {
-                "female", "male" -> "/tag/$ns:$tagname${separator}1$extension"
-                "language" -> "/index-$tagname${separator}1$extension"
-                else -> "/$ns/$tagname${separator}all${separator}1$extension"
-            }
+                when(ns) {
+                    "female", "male" -> "/tag/$ns:$tagname${separator}1$extension"
+                    "language" -> "/index-$tagname${separator}1$extension"
+                    else -> "/$ns/$tagname${separator}all${separator}1$extension"
+                }
 
         suggestions.add(Suggestion(tag, count, u, ns))
     }
@@ -178,20 +175,18 @@ suspend fun DIAware.getSuggestionsFromData(field: String, data: Pair<Long, Int>)
     return suggestions
 }
 
-suspend fun DIAware.getGalleryIDsFromNozomi(area: String?, tag: String, language: String) : Set<Int> = withContext(Dispatchers.IO) {
-    val client: HttpClient by instance()
-
+suspend fun HttpClient.getGalleryIDsFromNozomi(area: String?, tag: String, language: String) : Set<Int> {
     val nozomiAddress =
-        when(area) {
-            null -> "$protocol//$domain/$compressed_nozomi_prefix/$tag-$language$nozomiextension"
-            else -> "$protocol//$domain/$compressed_nozomi_prefix/$area/$tag-$language$nozomiextension"
-        }
+            when(area) {
+                null -> "$protocol//$domain/$compressed_nozomi_prefix/$tag-$language$nozomiextension"
+                else -> "$protocol//$domain/$compressed_nozomi_prefix/$area/$tag-$language$nozomiextension"
+            }
 
-    val bytes: ByteArray = try {
-        client.get(nozomiAddress)
-    } catch (e: Exception) {
-        return@withContext emptySet()
-    }
+    val bytes: ByteArray = withContext(Dispatchers.IO) {
+        runCatching {
+            this@getGalleryIDsFromNozomi.get<ByteArray>(nozomiAddress)
+        }.getOrNull()
+    } ?: return emptySet()
 
     val nozomi = mutableSetOf<Int>()
 
@@ -202,10 +197,10 @@ suspend fun DIAware.getGalleryIDsFromNozomi(area: String?, tag: String, language
     while (arrayBuffer.hasRemaining())
         nozomi.add(arrayBuffer.int)
 
-    nozomi
+    return nozomi
 }
 
-suspend fun DIAware.getGalleryIDsFromData(data: Pair<Long, Int>) : Set<Int> {
+suspend fun HttpClient.getGalleryIDsFromData(data: Pair<Long, Int>) : Set<Int> {
     val url = "$protocol//$domain/$galleries_index_dir/galleries.${getGalleriesIndexVersion()}.data"
     val (offset, length) = data
     if (length > 100000000 || length <= 0)
@@ -234,32 +229,29 @@ suspend fun DIAware.getGalleryIDsFromData(data: Pair<Long, Int>) : Set<Int> {
     return galleryIDs
 }
 
-@OptIn(ExperimentalUnsignedTypes::class)
-suspend fun DIAware.getNodeAtAddress(field: String, address: Long) : Node? {
+suspend fun HttpClient.getNodeAtAddress(field: String, address: Long) : Node {
     val url =
-        when(field) {
-            "galleries" -> "$protocol//$domain/$galleries_index_dir/galleries.${getGalleriesIndexVersion()}.index"
-            "languages" -> "$protocol//$domain/$galleries_index_dir/languages.${getGalleriesIndexVersion()}.index"
-            "nozomiurl" -> "$protocol//$domain/$galleries_index_dir/nozomiurl.${getGalleriesIndexVersion()}.index"
-            else -> "$protocol//$domain/$index_dir/$field.${getTagIndexVersion()}.index"
-        }
+            when(field) {
+                "galleries" -> "$protocol//$domain/$galleries_index_dir/galleries.${getGalleriesIndexVersion()}.index"
+                "languages" -> "$protocol//$domain/$galleries_index_dir/languages.${getGalleriesIndexVersion()}.index"
+                "nozomiurl" -> "$protocol//$domain/$galleries_index_dir/nozomiurl.${getGalleriesIndexVersion()}.index"
+                else -> "$protocol//$domain/$index_dir/$field.${getTagIndexVersion()}.index"
+            }
 
-    val nodedata = getURLAtRange(url, address.until(address+max_node_size))
+    val nodedata = getURLAtRange(url, address.until(address+ max_node_size))
 
     return decodeNode(nodedata)
 }
 
-suspend fun DIAware.getURLAtRange(url: String, range: LongRange) : ByteArray = withContext(Dispatchers.IO) {
-    val client: HttpClient by instance()
-
-    client.get(url) {
+suspend fun HttpClient.getURLAtRange(url: String, range: LongRange) : ByteArray = withContext(Dispatchers.IO) {
+    this@getURLAtRange.get(url) {
         header("Range", "bytes=${range.first}-${range.last}")
     }
 }
 
-@ExperimentalUnsignedTypes
+@OptIn(ExperimentalUnsignedTypes::class)
 data class Node(val keys: List<UByteArray>, val datas: List<Pair<Long, Int>>, val subNodeAddresses: List<Long>)
-@ExperimentalUnsignedTypes
+@OptIn(ExperimentalUnsignedTypes::class)
 fun decodeNode(data: ByteArray) : Node {
     val buffer = ByteBuffer
         .wrap(data)
@@ -290,7 +282,7 @@ fun decodeNode(data: ByteArray) : Node {
         datas.add(Pair(offset, length))
     }
 
-    val numberOfSubNodeAddresses = B+1
+    val numberOfSubNodeAddresses = B +1
     val subNodeAddresses = ArrayList<Long>()
 
     for (i in 0.until(numberOfSubNodeAddresses)) {
@@ -301,8 +293,8 @@ fun decodeNode(data: ByteArray) : Node {
     return Node(keys, datas, subNodeAddresses)
 }
 
-@ExperimentalUnsignedTypes
-suspend fun DIAware.bSearch(field: String, key: UByteArray, node: Node) : Pair<Long, Int>? {
+@OptIn(ExperimentalUnsignedTypes::class)
+suspend fun HttpClient.bSearch(field: String, key: UByteArray, node: Node) : Pair<Long, Int>? {
     fun compareArrayBuffers(dv1: UByteArray, dv2: UByteArray) : Int {
         val top = min(dv1.size, dv2.size)
 
@@ -344,6 +336,6 @@ suspend fun DIAware.bSearch(field: String, key: UByteArray, node: Node) : Pair<L
     else if (isLeaf(node))
         return null
 
-    val nextNode = getNodeAtAddress(field, node.subNodeAddresses[where]) ?: return null
+    val nextNode = getNodeAtAddress(field, node.subNodeAddresses[where])
     return bSearch(field, key, nextNode)
 }

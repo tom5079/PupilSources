@@ -40,6 +40,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberImagePainter
 import com.google.accompanist.flowlayout.FlowRow
+import io.ktor.http.*
+import okhttp3.Headers
 import xyz.quaver.pupil.sources.hitomi.HitomiSearchResult
 import xyz.quaver.pupil.sources.base.theme.Blue700
 import xyz.quaver.pupil.sources.base.theme.Orange500
@@ -211,31 +213,33 @@ fun TagGroup(
 
     val favoriteTagsInList = favorites intersect tags.toSet()
 
-    FlowRow(Modifier.padding(0.dp, 16.dp)) {
-        tags.sortedBy { if (favoriteTagsInList.contains(it)) 0 else 1 }
-            .let { (if (isFolded) it.take(10) else it) }.forEach { tag ->
-            TagChip(
-                tag = tag,
-                isFavorite = favoriteTagsInList.contains(tag),
-                onFavoriteClick = onFavoriteToggle
-            )
-        }
+    CompositionLocalProvider(LocalMinimumTouchTargetEnforcement provides false) {
+        FlowRow(Modifier.padding(0.dp, 16.dp)) {
+            tags.sortedBy { if (favoriteTagsInList.contains(it)) 0 else 1 }
+                .let { (if (isFolded) it.take(10) else it) }.forEach { tag ->
+                    TagChip(
+                        tag = tag,
+                        isFavorite = favoriteTagsInList.contains(tag),
+                        onFavoriteClick = onFavoriteToggle
+                    )
+                }
 
-        if (isFolded && tags.size > 10)
-            Surface(
-                modifier = Modifier.padding(2.dp),
-                color = MaterialTheme.colors.background,
-                shape = RoundedCornerShape(16.dp),
-                elevation = 2.dp,
-                onClick = { isFolded = false }
-            ) {
-                Text(
-                    "…",
-                    modifier = Modifier.padding(16.dp, 8.dp),
-                    color = MaterialTheme.colors.onBackground,
-                    style = MaterialTheme.typography.body2
-                )
-            }
+            if (isFolded && tags.size > 10)
+                Surface(
+                    modifier = Modifier.padding(2.dp),
+                    color = MaterialTheme.colors.background,
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = 2.dp,
+                    onClick = { isFolded = false }
+                ) {
+                    Text(
+                        "…",
+                        modifier = Modifier.padding(16.dp, 8.dp),
+                        color = MaterialTheme.colors.onBackground,
+                        style = MaterialTheme.typography.body2
+                    )
+                }
+        }
     }
 }
 

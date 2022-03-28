@@ -1,12 +1,10 @@
 package xyz.quaver.pupil.sources.hitomi.composables
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.GridCells
-import androidx.compose.foundation.lazy.LazyVerticalGrid
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -25,13 +23,12 @@ import xyz.quaver.pupil.proto.Settings
 import xyz.quaver.pupil.sources.R
 import xyz.quaver.pupil.sources.base.composables.SearchBase
 import xyz.quaver.pupil.sources.base.composables.SubFabItem
+import xyz.quaver.pupil.sources.base.util.withLocalResource
 import xyz.quaver.pupil.sources.hitomi.HitomiDatabase
 import xyz.quaver.pupil.sources.hitomi.HitomiSearchResultViewModel
-import xyz.quaver.pupil.sources.base.util.withLocalResource
 import java.util.*
 
 @ExperimentalMaterialApi
-@ExperimentalFoundationApi
 @Composable
 fun Search(navigateToReader: (itemID: String) -> Unit) {
     val model: HitomiSearchResultViewModel by rememberViewModel()
@@ -129,10 +126,7 @@ fun Search(navigateToReader: (itemID: String) -> Unit) {
         },
         onSearch = { model.search() }
     ) { contentPadding ->
-        LazyVerticalGrid(
-            cells = GridCells.Adaptive(minSize = 500.dp),
-            contentPadding = contentPadding
-        ) {
+        LazyColumn(contentPadding = contentPadding) {
             items(model.searchResults) {
                 DetailedSearchResult(
                     it,

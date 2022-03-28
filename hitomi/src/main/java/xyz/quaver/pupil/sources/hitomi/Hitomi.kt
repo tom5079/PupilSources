@@ -2,7 +2,7 @@ package xyz.quaver.pupil.sources.hitomi
 
 import android.annotation.SuppressLint
 import android.app.Application
-import android.webkit.WebView
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.Composable
@@ -12,15 +12,24 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.room.Room
-import org.kodein.di.DIAware
+import io.ktor.client.*
+import io.ktor.client.engine.okhttp.*
+import io.ktor.client.features.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.util.pipeline.*
+import kotlinx.coroutines.delay
 import org.kodein.di.android.closestDI
 import org.kodein.di.android.subDI
 import org.kodein.di.bindProvider
 import org.kodein.di.bindSingleton
 import org.kodein.di.compose.withDI
+import org.kodein.di.direct
+import org.kodein.di.instance
 import xyz.quaver.pupil.sources.base.util.LocalResourceContext
 import xyz.quaver.pupil.sources.core.Source
 import xyz.quaver.pupil.sources.hitomi.composables.Reader
+import xyz.quaver.pupil.sources.hitomi.composables.HitomiReaderViewModel
 import xyz.quaver.pupil.sources.hitomi.composables.Search
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -34,14 +43,18 @@ class Hitomi(app: Application): Source() {
             Room.databaseBuilder(app, HitomiDatabase::class.java, packageName).build()
         }
 
-        bindSingleton {
-            WebView(app).apply {
-                settings.javaScriptEnabled = true
-                loadData("""<script src="https://ltn.hitomi.la/gg.js"></script>""", "text/html", null)
+        bindSingleton(overrides = true) {
+            val parentDI by closestDI(app)
+            val client: HttpClient = parentDI.direct.instance()
+
+            HttpClient(client.engine) {
+                install(HitomiPlugin)
+                BrowserUserAgent()
             }
         }
 
         bindProvider { HitomiSearchResultViewModel(di) }
+        bindProvider { HitomiReaderViewModel(di) }
     }
 
     @Composable
@@ -58,9 +71,8 @@ class Hitomi(app: Application): Source() {
                     )
                 }
                 composable("reader/{itemID}") {
-                    Reader(
-                        itemID = navController.currentBackStackEntry?.arguments?.getString("itemID")!!
-                    )
+                    val itemID = navController.currentBackStackEntry?.arguments?.getString("itemID") ?: return@composable
+                    Reader(itemID)
                 }
             }
         }

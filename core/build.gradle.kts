@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "xyz.quaver.pupil.sources"
-version = "0.0.1-alpha01-DEV16"
+version = "0.0.1-alpha01-DEV25"
 
 android {
     compileSdk = AndroidConfig.COMPILE_SDK
@@ -40,7 +40,7 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
-        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
+        freeCompilerArgs = freeCompilerArgs + "-Xopt-in=kotlin.RequiresOptIn"
     }
 }
 

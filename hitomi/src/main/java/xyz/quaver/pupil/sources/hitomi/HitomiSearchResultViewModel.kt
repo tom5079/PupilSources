@@ -25,26 +25,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
 import io.ktor.client.*
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.yield
+import kotlinx.coroutines.*
 import org.kodein.di.DI
 import org.kodein.di.DIAware
+import org.kodein.di.instance
 import xyz.quaver.pupil.sources.base.composables.SearchBaseViewModel
-import xyz.quaver.pupil.sources.hitomi.lib.GalleryBlock
-import xyz.quaver.pupil.sources.hitomi.lib.doSearch
-import xyz.quaver.pupil.sources.hitomi.lib.getGalleryBlock
+import xyz.quaver.pupil.sources.hitomi.lib.*
+import xyz.quaver.pupil.sources.hitomi.lib.logTime
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.system.measureTimeMillis
 
 class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<HitomiSearchResult>(), DIAware {
+    private val client: HttpClient by instance()
+
     private var cachedQuery: String? = null
     private var cachedSortByPopularity: Boolean? = null
     private val cache = mutableListOf<Int>()
 
-    private val galleryBlockCache = LruCache<Int, GalleryBlock>(100)
+    private val galleryInfoCache = LruCache<Int, GalleryInfo>(100)
 
     var sortByPopularity by mutableStateOf(false)
 
@@ -67,42 +67,43 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Hito
 
                     yield()
 
-                    val result = runCatching {
-                        doSearch(query, sortByPopularity)
-                    }.onFailure {
-                        error = true
-                    }.getOrNull()
+                    val result = withContext(Dispatchers.Unconfined) {
+                        runCatching {
+                            logTime("doSearch") {
+                                client.doSearch(query, sortByPopularity)
+                            }
+                        }.onFailure {
+                            error = true
+                        }.getOrNull().orEmpty()
+                    }
 
                     yield()
 
-                    result?.let { cache.addAll(result) }
+                    cache.addAll(result)
                     cachedQuery = query
-                    totalItems = result?.size ?: 0
-                    maxPage =
-                        result?.let { ceil(result.size / resultsPerPage.toDouble()).toInt() }
-                            ?: 0
+                    totalItems = result.size
+                    maxPage = ceil(result.size / resultsPerPage.toDouble()).toInt()
                 }
 
                 yield()
 
                 val range = max((currentPage-1)*resultsPerPage, 0) until min(currentPage*resultsPerPage, totalItems)
 
-                cache.slice(range)
-                    .forEach { galleryID ->
-                        yield()
-                        loading = false
-                        kotlin.runCatching {
-                            galleryBlockCache.get(galleryID) ?: getGalleryBlock(galleryID).also {
-                                galleryBlockCache.put(galleryID, it)
-                            }
-                        }.onFailure {
-                            it.printStackTrace()
-                            error = true
-                        }.getOrNull()?.let {
-                            searchResults.add(transform(it))
+                cache.slice(range).map { galleryID ->
+                    yield()
+                    loading = false
+                    async(Dispatchers.Unconfined) {
+                        galleryInfoCache.get(galleryID) ?: client.getGalleryInfo(galleryID).also {
+                            galleryInfoCache.put(galleryID, it)
                         }
-
                     }
+                }.forEach {
+                    kotlin.runCatching {
+                        searchResults.add(transform(client, it.await()))
+                    }.onFailure {
+                        error = true
+                    }
+                }
             }
 
             viewModelScope.launch {
@@ -113,16 +114,16 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Hito
     }
 
     companion object {
-        fun transform(galleryBlock: GalleryBlock) =
+        suspend fun transform(client: HttpClient, galleryInfo: GalleryInfo) =
             HitomiSearchResult(
-                galleryBlock.id.toString(),
-                galleryBlock.title,
-                galleryBlock.thumbnails.first(),
-                galleryBlock.artists,
-                galleryBlock.series,
-                galleryBlock.type,
-                galleryBlock.language,
-                galleryBlock.relatedTags
+                galleryInfo.id,
+                galleryInfo.title,
+                client.urlFromUrlFromHash(galleryInfo.files.first(), "webpbigtn", "webp", "tn"),
+                galleryInfo.artists.orEmpty().map { it.artist },
+                galleryInfo.parodys.orEmpty().map { it.parody },
+                galleryInfo.type,
+                galleryInfo.language ?: "N/A",
+                galleryInfo.tags.orEmpty().map { it.toString() }
             )
     }
 }

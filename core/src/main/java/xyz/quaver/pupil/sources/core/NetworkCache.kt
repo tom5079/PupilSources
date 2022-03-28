@@ -24,8 +24,6 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.util.*
-import io.ktor.util.collections.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
@@ -33,9 +31,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.kodein.di.DIAware
-import org.kodein.di.android.closestDI
-import org.kodein.di.instance
 import org.kodein.log.LoggerFactory
 import org.kodein.log.newLogger
 import java.io.File
@@ -47,7 +42,7 @@ import kotlin.text.toByteArray
 
 private const val CACHE_LIMIT = 100*1024*1024 // 100M
 
-class NetworkCache(context: Context, private val client: HttpClient) {
+class NetworkCache(context: Context) {
     private val logger = newLogger(LoggerFactory.default)
 
     private val networkScope = CoroutineScope(Executors.newFixedThreadPool(4).asCoroutineDispatcher())
@@ -97,7 +92,7 @@ class NetworkCache(context: Context, private val client: HttpClient) {
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    suspend fun load(force: Boolean = false, requestBuilder: HttpRequestBuilder.() -> Unit): Pair<StateFlow<Float>, File> = coroutineScope {
+    suspend fun HttpClient.load(force: Boolean = false, requestBuilder: HttpRequestBuilder.() -> Unit): Pair<StateFlow<Float>, File> = coroutineScope {
         val request = HttpRequestBuilder().apply(requestBuilder)
 
         val url = request.url.buildString()
@@ -117,45 +112,46 @@ class NetworkCache(context: Context, private val client: HttpClient) {
                 if (force) requests[url]?.cancelAndJoin()
 
                 requests[url] = networkScope.launch {
+                    if (!force && file.exists()) {
+                        progressFlow.emit(Float.POSITIVE_INFINITY)
+                        return@launch
+                    }
+
                     runCatching {
-                        if (!force && file.exists()) {
-                            progressFlow.emit(Float.POSITIVE_INFINITY)
-                        } else {
-                            cacheDir.mkdirs()
-                            file.createNewFile()
+                        cacheDir.mkdirs()
+                        file.createNewFile()
 
-                            client.request<HttpStatement>(request).execute { httpResponse ->
-                                if (!httpResponse.status.isSuccess()) throw IOException("${request.url} failed with code ${httpResponse.status.value}")
-                                val responseChannel: ByteReadChannel = httpResponse.receive()
-                                val contentLength = httpResponse.contentLength() ?: -1
-                                var readBytes = 0f
+                        request<HttpStatement>(request).execute { httpResponse ->
+                            if (!httpResponse.status.isSuccess()) throw IOException("${request.url} failed with code ${httpResponse.status.value}")
+                            val responseChannel: ByteReadChannel = httpResponse.receive()
+                            val contentLength = httpResponse.contentLength() ?: -1
+                            var readBytes = 0f
 
-                                file.outputStream().use { outputStream ->
-                                    outputStream.channel.truncate(0)
-                                    while (!responseChannel.isClosedForRead) {
+                            file.outputStream().use { outputStream ->
+                                outputStream.channel.truncate(0)
+                                while (!responseChannel.isClosedForRead) {
+                                    if (!isActive) {
+                                        file.delete()
+                                        break
+                                    }
+
+                                    val packet =
+                                        responseChannel.readRemaining(DEFAULT_BUFFER_SIZE.toLong())
+                                    while (!packet.isEmpty) {
                                         if (!isActive) {
                                             file.delete()
                                             break
                                         }
 
-                                        val packet =
-                                            responseChannel.readRemaining(DEFAULT_BUFFER_SIZE.toLong())
-                                        while (!packet.isEmpty) {
-                                            if (!isActive) {
-                                                file.delete()
-                                                break
-                                            }
+                                        val bytes = packet.readBytes()
+                                        outputStream.write(bytes)
 
-                                            val bytes = packet.readBytes()
-                                            outputStream.write(bytes)
-
-                                            readBytes += bytes.size
-                                            progressFlow.emit(readBytes / contentLength)
-                                        }
+                                        readBytes += bytes.size
+                                        progressFlow.emit(readBytes / contentLength)
                                     }
                                 }
-                                progressFlow.emit(Float.POSITIVE_INFINITY)
                             }
+                            progressFlow.emit(Float.POSITIVE_INFINITY)
                         }
                     }.onFailure {
                         logger.warning(it)

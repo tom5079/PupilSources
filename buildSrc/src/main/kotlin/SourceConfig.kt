@@ -6,12 +6,12 @@ object AndroidConfig {
 }
 
 object Versions {
-    const val KOTLIN = "1.5.31"
+    const val KOTLIN = "1.6.10"
 
-    const val JETPACK_COMPOSE = "1.0.5"
-    const val ACCOMPANIST = "0.20.3"
+    const val JETPACK_COMPOSE = "1.1.1"
+    const val ACCOMPANIST = "0.23.1"
 
-    const val KTOR_CLIENT = "1.6.7"
+    const val KTOR_CLIENT = "1.6.8"
 }
 
 object Kotlin {
@@ -52,9 +52,9 @@ object AndroidX {
 }
 
 object Kodein {
-    const val DI = "org.kodein.di:kodein-di-framework-compose:7.10.0"
-    const val DI_VIEWMODEL = "org.kodein.di:kodein-di-framework-android-x-viewmodel:7.10.0"
-    const val DI_VIEWMODEL_SAVEDSTATE = "org.kodein.di:kodein-di-framework-android-x-viewmodel-savedstate:7.10.0"
+    const val DI = "org.kodein.di:kodein-di-framework-compose:7.11.0"
+    const val DI_VIEWMODEL = "org.kodein.di:kodein-di-framework-android-x-viewmodel:7.11.0"
+    const val DI_VIEWMODEL_SAVEDSTATE = "org.kodein.di:kodein-di-framework-android-x-viewmodel-savedstate:7.11.0"
     const val LOG = "org.kodein.log:kodein-log:0.11.1"
 }
 

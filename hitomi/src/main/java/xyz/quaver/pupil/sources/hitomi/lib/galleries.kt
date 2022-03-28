@@ -1,32 +1,23 @@
 /*
- *     Pupil, Hitomi.la viewer for Android
- *     Copyright (C) 2021 tom5079
+ *    Copyright 2019 tom5079
  *
- *     This program is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
  *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
  */
 
 package xyz.quaver.pupil.sources.hitomi.lib
 
 import io.ktor.client.*
-import io.ktor.client.request.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import org.jsoup.Jsoup
-import org.kodein.di.DIAware
-import org.kodein.di.instance
-import java.net.URLDecoder
 
 @Serializable
 data class Gallery(
@@ -43,46 +34,22 @@ data class Gallery(
     val tags: List<String>,
     val thumbnails: List<String>
 )
-suspend fun DIAware.getGallery(galleryID: Int) : Gallery = withContext(Dispatchers.IO) {
-    val client: HttpClient by instance()
 
-    val url = Jsoup.parse(client.get("https://hitomi.la/galleries/$galleryID.html"))
-        .select("link").attr("href")
+suspend fun HttpClient.getGallery(galleryID: Int) : Gallery {
+    val info = getGalleryInfo(galleryID)
 
-    val doc = Jsoup.parse(client.get(url))
-
-    val related = Regex("\\d+")
-        .findAll(doc.select("script").first()!!.html())
-        .map {
-            it.value.toInt()
-        }.toList()
-
-    val langList = doc.select("#lang-list a").map {
-        Pair(it.text(), "$protocol//hitomi.la${it.attr("href")}")
-    }
-
-    val cover = protocol + doc.selectFirst(".cover img")!!.attr("src")
-    val title = doc.selectFirst(".gallery h1 a")!!.text()
-    val artists = doc.select(".gallery h2 a").map { it.text() }
-    val groups = doc.select(".gallery-info a[href~=^/group/]").map { it.text() }
-    val type = doc.selectFirst(".gallery-info a[href~=^/type/]")!!.text()
-
-    val language = run {
-        val href = doc.select(".gallery-info a[href~=^/index.+\\.html\$]").attr("href")
-        Regex("""index-([^-]+)(-.+)?\.html""").find(href)?.groupValues?.getOrNull(1) ?: ""
-    }
-
-    val series = doc.select(".gallery-info a[href~=^/series/]").map { it.text() }
-    val characters = doc.select(".gallery-info a[href~=^/character/]").map { it.text() }
-
-    val tags = doc.select(".gallery-info a[href~=^/tag/]").map {
-        val href = URLDecoder.decode(it.attr("href"), "UTF-8")
-        href.slice(5 until href.indexOf('-'))
-    }
-
-    val thumbnails = getGalleryInfo(galleryID).files.map { galleryInfo ->
-        urlFromUrlFromHash(galleryID, galleryInfo, "smalltn", "jpg", "tn")
-    }
-
-    Gallery(related, langList, cover, title, artists, groups, type, language, series, characters, tags, thumbnails)
+    return Gallery(
+        info.related,
+        info.languages.map { it.name to it.galleryid },
+        urlFromUrlFromHash(info.files.first(), "webpbigtn", "webp", "tn"),
+        info.title,
+        info.artists?.map { it.artist }.orEmpty(),
+        info.groups?.map { it.group }.orEmpty(),
+        info.type,
+        info.language.orEmpty(),
+        info.parodys?.map { it.parody }.orEmpty(),
+        info.characters?.map { it.character }.orEmpty(),
+        info.tags?.map { "${if (it.female.isNullOrEmpty()) "" else "female:"}${if (it.male.isNullOrEmpty()) "" else "male:"}${it.tag}" }.orEmpty(),
+        info.files.map { urlFromUrlFromHash(it, "webpsmalltn", "webp", "tn") }
+    )
 }
