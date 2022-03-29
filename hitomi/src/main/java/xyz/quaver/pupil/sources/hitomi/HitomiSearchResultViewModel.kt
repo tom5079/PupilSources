@@ -29,9 +29,7 @@ import org.kodein.di.DI
 import org.kodein.di.DIAware
 import org.kodein.di.instance
 import xyz.quaver.pupil.sources.base.composables.SearchBaseViewModel
-import xyz.quaver.pupil.sources.hitomi.lib.GalleryInfo
-import xyz.quaver.pupil.sources.hitomi.lib.doSearch
-import xyz.quaver.pupil.sources.hitomi.lib.getGalleryInfo
+import xyz.quaver.pupil.sources.hitomi.lib.*
 import xyz.quaver.pupil.sources.hitomi.lib.logTime
 import kotlin.math.ceil
 import kotlin.math.max
@@ -41,12 +39,12 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
     private val client: HttpClient by instance()
 
     private var cachedQuery: String? = null
-    private var cachedSortByPopularity: Boolean? = null
+    private var cachedSortByPopularity: SortOptions? = null
     private val cache = mutableListOf<Int>()
 
     private val galleryInfoCache = LruCache<Int, GalleryInfo>(100)
 
-    var sortByPopularity by mutableStateOf(false)
+    var sortByPopularity by mutableStateOf(SortOptions.DATE)
 
     private var searchJob: Job? = null
     fun search() {

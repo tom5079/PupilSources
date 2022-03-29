@@ -21,7 +21,15 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import java.util.*
 
-suspend fun HttpClient.doSearch(query: String, sortByPopularity: Boolean = false) : Set<Int> = coroutineScope {
+enum class SortOptions(val area: String?, val tag: String) {
+    DATE(null, "index"),
+    POPULAR_TODAY("popular", "today"),
+    POPULAR_WEEK("popular", "week"),
+    POPULAR_MONTH("popular", "month"),
+    POPULAR_YEAR("popular", "year")
+}
+
+suspend fun HttpClient.doSearch(query: String, sortOption: SortOptions) : Set<Int> = coroutineScope {
     val terms = query
         .trim()
         .replace(Regex("""^\?"""), "")
@@ -49,7 +57,7 @@ suspend fun HttpClient.doSearch(query: String, sortByPopularity: Boolean = false
         }
     }
 
-    val negativeResults = negativeTerms.mapIndexed { index, it ->
+    val negativeResults = negativeTerms.map {
         async {
             runCatching {
                 getGalleryIDsForQuery(it)
@@ -57,32 +65,26 @@ suspend fun HttpClient.doSearch(query: String, sortByPopularity: Boolean = false
         }
     }
 
-    val results = when {
-        sortByPopularity -> getGalleryIDsFromNozomi(null, "popular", "all")
-        positiveTerms.isEmpty() -> getGalleryIDsFromNozomi(null, "index", "all")
-        else -> emptySet()
-    }.toMutableSet()
+    buildSet {
+        addAll(
+            when {
+                sortOption != SortOptions.DATE -> getGalleryIDsFromNozomi(sortOption.area, sortOption.tag, "all")
+                positiveTerms.isEmpty() -> getGalleryIDsFromNozomi(null, "index", "all")
+                else -> emptySet()
+            }
+        )
 
-    fun filterPositive(newResults: Set<Int>) {
-        when {
-            results.isEmpty() -> results.addAll(newResults)
-            else -> results.retainAll(newResults)
+        //positive results
+      positiveResults.forEach {
+            val result = it.await()
+
+            if (this.isEmpty()) addAll(result)
+            else retainAll(result)
+        }
+
+        //negative results
+        negativeResults.forEach {
+            removeAll(it.await())
         }
     }
-
-    fun filterNegative(newResults: Set<Int>) {
-        results.removeAll(newResults)
-    }
-
-    //positive results
-    positiveResults.forEach {
-        filterPositive(it.await())
-    }
-
-    //negative results
-    negativeResults.forEachIndexed { index, it ->
-        filterNegative(it.await())
-    }
-
-    results
 }

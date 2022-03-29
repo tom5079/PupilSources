@@ -26,6 +26,7 @@ import xyz.quaver.pupil.sources.base.composables.SubFabItem
 import xyz.quaver.pupil.sources.base.util.withLocalResource
 import xyz.quaver.pupil.sources.hitomi.HitomiDatabase
 import xyz.quaver.pupil.sources.hitomi.HitomiSearchResultViewModel
+import xyz.quaver.pupil.sources.hitomi.lib.SortOptions
 import java.util.*
 
 @ExperimentalMaterialApi
@@ -89,39 +90,31 @@ fun Search(navigateToReader: (itemID: String) -> Unit) {
                 Icon(Icons.Default.Sort, contentDescription = null)
             }
 
-//            IconButton(onClick = { navController.navigate("settings") }) {
-//                Icon(Icons.Default.Settings, contentDescription = null)
-//            }
-
-            val onClick: (Boolean?) -> Unit = {
+            val onClick: (SortOptions) -> Unit = {
                 expanded = false
-
-                it?.let {
-                    model.sortByPopularity = it
-                }
+                model.sortByPopularity = it
             }
-            DropdownMenu(expanded, onDismissRequest = { onClick(null) }) {
-                DropdownMenuItem(onClick = { onClick(false) }) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text("Newest")
-                        RadioButton(selected = !model.sortByPopularity, onClick = { onClick(false) })
+            DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+                @Composable
+                fun SortOptionsMenuItem(text: String, sortOption: SortOptions, divider: Boolean = true) {
+                    DropdownMenuItem(onClick = { onClick(sortOption) }) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(text)
+                            RadioButton(selected = model.sortByPopularity == sortOption, onClick = { onClick(sortOption) })
+                        }
                     }
+
+                    if (divider) Divider()
                 }
 
-                Divider()
-
-                DropdownMenuItem(onClick = { onClick(true) }){
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text("Popular")
-                        RadioButton(selected = model.sortByPopularity, onClick = { onClick(true) })
-                    }
-                }
+                SortOptionsMenuItem("Date Added", SortOptions.DATE)
+                SortOptionsMenuItem("Popular: Today", SortOptions.POPULAR_TODAY)
+                SortOptionsMenuItem("Popular: Week", SortOptions.POPULAR_WEEK)
+                SortOptionsMenuItem("Popular: Month", SortOptions.POPULAR_MONTH)
+                SortOptionsMenuItem("Popular: Year", SortOptions.POPULAR_YEAR, divider = false)
             }
         },
         onSearch = { model.search() }
