@@ -103,7 +103,9 @@ fun DetailedSearchResult(
         value = result.thumbnail(client)
     }
 
-    val painter = rememberImagePainter(thumbnail)
+    val painter = rememberImagePainter(thumbnail) {
+        addHeader("Referer", "https://hitomi.la/")
+    }
 
     Card(
         modifier = Modifier
