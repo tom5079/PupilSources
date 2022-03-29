@@ -81,6 +81,7 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
 
                     cache.addAll(result)
                     cachedQuery = query
+                    cachedSortByPopularity = sortByPopularity
                     totalItems = result.size
                     maxPage = ceil(result.size / resultsPerPage.toDouble()).toInt()
                 }
