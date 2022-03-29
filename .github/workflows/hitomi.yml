@@ -53,13 +53,14 @@ jobs:
       run: |
           git config --global user.name 'Build bot'
           git config --global user.email 'tom5079@naver.com'
+          git fetch
           git add versions.json
-          git commit -am "Version update"
-          git push
+          git commit -m "Version update"
           git checkout gh-pages
           git checkout master versions.json
-          git commit -am "Version update"
-          git push
+          git add versions.json
+          git commit -m "Version update"
+          git push --all
     
     - name: Release
       uses: softprops/action-gh-release@v1
