@@ -101,25 +101,6 @@ data class Language(
     val name: String
 )
 
-@Serializable
-data class GalleryInfo(
-    val id: String,
-    val title: String,
-    val japanese_title: String? = null,
-    val language: String? = null,
-    val type: String,
-    val date: String,
-    val artists: List<Artist>? = null,
-    val groups: List<Group>? = null,
-    val parodys: List<Parody>? = null,
-    val tags: List<Tag>? = null,
-    val related: List<Int> = emptyList(),
-    val languages: List<Language> = emptyList(),
-    val characters: List<Character>? = null,
-    val scene_indexes: List<Int>? = emptyList(),
-    val files: List<GalleryFiles> = emptyList()
-)
-
 val json = Json {
     isLenient = true
     ignoreUnknownKeys = true
@@ -184,7 +165,7 @@ object gg {
         return b
     }
     fun s(h: String): String {
-        var m = Regex("(..)(.)$").find(h)
+        val m = Regex("(..)(.)$").find(h)
         return m!!.groupValues.let { it[2]+it[1] }.toInt(16).toString(10)
     }
 }

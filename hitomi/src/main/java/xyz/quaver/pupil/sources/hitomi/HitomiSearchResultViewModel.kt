@@ -18,7 +18,6 @@
 
 package xyz.quaver.pupil.sources.hitomi
 
-import android.util.Log
 import android.util.LruCache
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,14 +29,15 @@ import org.kodein.di.DI
 import org.kodein.di.DIAware
 import org.kodein.di.instance
 import xyz.quaver.pupil.sources.base.composables.SearchBaseViewModel
-import xyz.quaver.pupil.sources.hitomi.lib.*
+import xyz.quaver.pupil.sources.hitomi.lib.GalleryInfo
+import xyz.quaver.pupil.sources.hitomi.lib.doSearch
+import xyz.quaver.pupil.sources.hitomi.lib.getGalleryInfo
 import xyz.quaver.pupil.sources.hitomi.lib.logTime
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.system.measureTimeMillis
 
-class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<HitomiSearchResult>(), DIAware {
+class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<GalleryInfo>(), DIAware {
     private val client: HttpClient by instance()
 
     private var cachedQuery: String? = null
@@ -99,7 +99,7 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Hito
                     }
                 }.forEach {
                     kotlin.runCatching {
-                        searchResults.add(transform(client, it.await()))
+                        searchResults.add(it.await())
                     }.onFailure {
                         error = true
                     }
@@ -111,19 +111,5 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Hito
                 loading = false
             }
         }
-    }
-
-    companion object {
-        suspend fun transform(client: HttpClient, galleryInfo: GalleryInfo) =
-            HitomiSearchResult(
-                galleryInfo.id,
-                galleryInfo.title,
-                client.urlFromUrlFromHash(galleryInfo.files.first(), "webpbigtn", "webp", "tn"),
-                galleryInfo.artists.orEmpty().map { it.artist },
-                galleryInfo.parodys.orEmpty().map { it.parody },
-                galleryInfo.type,
-                galleryInfo.language ?: "N/A",
-                galleryInfo.tags.orEmpty().map { it.toString() }
-            )
     }
 }

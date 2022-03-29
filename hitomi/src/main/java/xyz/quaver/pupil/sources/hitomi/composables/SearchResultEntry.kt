@@ -40,12 +40,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberImagePainter
 import com.google.accompanist.flowlayout.FlowRow
+import io.ktor.client.*
 import io.ktor.http.*
-import okhttp3.Headers
-import xyz.quaver.pupil.sources.hitomi.HitomiSearchResult
+import org.kodein.di.compose.rememberInstance
 import xyz.quaver.pupil.sources.base.theme.Blue700
 import xyz.quaver.pupil.sources.base.theme.Orange500
 import xyz.quaver.pupil.sources.base.theme.Pink600
+import xyz.quaver.pupil.sources.hitomi.lib.GalleryInfo
+import xyz.quaver.pupil.sources.hitomi.lib.joinToCapitalizedString
 
 private val languageMap = mapOf(
     "indonesian" to "Bahasa Indonesia",
@@ -87,24 +89,21 @@ private val languageMap = mapOf(
     "japanese" to "日本語"
 )
 
-private fun String.wordCapitalize() : String {
-    val result = ArrayList<String>()
-
-    for (word in this.split(" "))
-        result.add(word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() })
-
-    return result.joinToString(" ")
-}
-
 @ExperimentalMaterialApi
 @Composable
 fun DetailedSearchResult(
-    result: HitomiSearchResult,
+    result: GalleryInfo,
     favorites: Set<String>,
     onFavoriteToggle: (String) -> Unit = { },
-    onClick: (HitomiSearchResult) -> Unit = { }
+    onClick: (GalleryInfo) -> Unit = { }
 ) {
-    val painter = rememberImagePainter(result.thumbnail)
+    val client: HttpClient by rememberInstance()
+
+    val thumbnail by produceState<String?>(null, result) {
+        value = result.thumbnail(client)
+    }
+
+    val painter = rememberImagePainter(thumbnail)
 
     Card(
         modifier = Modifier
@@ -135,15 +134,27 @@ fun DetailedSearchResult(
                         color = MaterialTheme.colors.onSurface
                     )
 
+                    val artistsAndGroups = buildString {
+                        if (!result.artists.isNullOrEmpty())
+                            append(result.artists.joinToCapitalizedString())
+
+                        if (!result.groups.isNullOrEmpty()) {
+                            if (this.isNotEmpty()) append(' ')
+                            append('(')
+                            append(result.groups.joinToCapitalizedString())
+                            append(')')
+                        }
+                    }
+
                     Text(
-                        result.artists.joinToString { it.wordCapitalize() },
+                        artistsAndGroups,
                         style = MaterialTheme.typography.subtitle1,
                         color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
                     )
 
-                    if (result.series.isNotEmpty())
+                    if (result.parodys?.isNotEmpty() == true)
                         Text(
-                            "Series: ${result.series.joinToString { it.wordCapitalize() }}",
+                            "Series: ${result.parodys.joinToCapitalizedString()}",
                             style = MaterialTheme.typography.body2,
                             color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
                         )
@@ -164,7 +175,7 @@ fun DetailedSearchResult(
 
                     key(result.tags) {
                         TagGroup(
-                            tags = result.tags,
+                            tags = result.tags.orEmpty().map { it.toString() },
                             favorites,
                             onFavoriteToggle = onFavoriteToggle
                         )
@@ -174,28 +185,37 @@ fun DetailedSearchResult(
 
             Divider()
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    result.itemID,
-                    style = MaterialTheme.typography.body2,
-                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
-                )
-
-                Icon(
-                    if (result.itemID in favorites) Icons.Default.Star else Icons.Default.StarOutline,
-                    contentDescription = null,
-                    tint = Orange500,
+            Box {
+                Row(
                     modifier = Modifier
-                        .size(24.dp)
-                        .clickable {
-                            onFavoriteToggle(result.itemID)
-                        }
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        result.id,
+                        style = MaterialTheme.typography.body2,
+                        color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                    )
+
+                    Icon(
+                        if (result.id in favorites) Icons.Default.Star else Icons.Default.StarOutline,
+                        contentDescription = null,
+                        tint = Orange500,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable {
+                                onFavoriteToggle(result.id)
+                            }
+                    )
+                }
+
+                Text(
+                    "${result.files.size}P",
+                    style = MaterialTheme.typography.body2,
+                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.align(Alignment.Center)
                 )
             }
         }

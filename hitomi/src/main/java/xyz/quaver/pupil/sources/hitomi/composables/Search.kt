@@ -138,7 +138,7 @@ fun Search(navigateToReader: (itemID: String) -> Unit) {
                         }
                     },
                 ) { result ->
-                    navigateToReader(result.itemID)
+                    navigateToReader(result.id)
                 }
             }
         }
