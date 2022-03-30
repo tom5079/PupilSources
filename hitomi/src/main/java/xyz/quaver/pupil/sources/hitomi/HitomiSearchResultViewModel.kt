@@ -72,6 +72,7 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
                                 client.doSearch(query, sortByPopularity)
                             }
                         }.onFailure {
+                            it.printStackTrace()
                             error = true
                         }.getOrNull()
                     }
@@ -101,6 +102,7 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
                     runCatching {
                         searchResults.add(it.await())
                     }.onFailure {
+                        it.printStackTrace()
                         error = true
                     }
                 }
