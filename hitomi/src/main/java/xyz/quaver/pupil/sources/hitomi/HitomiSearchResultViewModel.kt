@@ -31,6 +31,7 @@ import org.kodein.di.instance
 import xyz.quaver.pupil.sources.base.composables.SearchBaseViewModel
 import xyz.quaver.pupil.sources.hitomi.lib.*
 import xyz.quaver.pupil.sources.hitomi.lib.logTime
+import java.nio.IntBuffer
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -40,7 +41,7 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
 
     private var cachedQuery: String? = null
     private var cachedSortByPopularity: SortOptions? = null
-    private val cache = mutableListOf<Int>()
+    private var cache: IntBuffer? = null
 
     private val galleryInfoCache = LruCache<Int, GalleryInfo>(100)
 
@@ -59,9 +60,9 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
             error = false
 
             searchJob = launch {
-                if (cachedQuery != query || cachedSortByPopularity != sortByPopularity || cache.isEmpty()) {
+                if (cachedQuery != query || cachedSortByPopularity != sortByPopularity || cache != null) {
                     cachedQuery = null
-                    cache.clear()
+                    cache = null
 
                     yield()
 
@@ -72,23 +73,23 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
                             }
                         }.onFailure {
                             error = true
-                        }.getOrNull().orEmpty()
+                        }.getOrNull()
                     }
 
                     yield()
 
-                    cache.addAll(result)
+                    cache = result
                     cachedQuery = query
                     cachedSortByPopularity = sortByPopularity
-                    totalItems = result.size
-                    maxPage = ceil(result.size / resultsPerPage.toDouble()).toInt()
+                    totalItems = result?.capacity() ?: 0
+                    maxPage = ceil(totalItems / resultsPerPage.toDouble()).toInt()
                 }
 
                 yield()
 
                 val range = max((currentPage-1)*resultsPerPage, 0) until min(currentPage*resultsPerPage, totalItems)
 
-                cache.slice(range).map { galleryID ->
+                range.map { cache!![it] }.map { galleryID ->
                     yield()
                     loading = false
                     async(Dispatchers.Unconfined) {
@@ -97,7 +98,7 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
                         }
                     }
                 }.forEach {
-                    kotlin.runCatching {
+                    runCatching {
                         searchResults.add(it.await())
                     }.onFailure {
                         error = true

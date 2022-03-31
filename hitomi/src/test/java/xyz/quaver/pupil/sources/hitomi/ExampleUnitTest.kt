@@ -3,16 +3,18 @@ package xyz.quaver.pupil.sources.hitomi
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.features.*
+import io.ktor.client.features.get
 import io.ktor.client.features.json.*
 import io.ktor.client.features.json.serializer.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import kotlinx.coroutines.runBlocking
 import okhttp3.Protocol
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import xyz.quaver.pupil.sources.hitomi.lib.doSearch
-import xyz.quaver.pupil.sources.hitomi.lib.getGalleryIDsForQuery
-import xyz.quaver.pupil.sources.hitomi.lib.getGalleryInfo
-import xyz.quaver.pupil.sources.hitomi.lib.imageUrlFromImage
+import xyz.quaver.pupil.sources.hitomi.lib.*
+import java.net.URL
+import javax.net.ssl.HttpsURLConnection
 
 /**
  * Example local unit test, which will execute on the development machine (host).
@@ -22,21 +24,17 @@ import xyz.quaver.pupil.sources.hitomi.lib.imageUrlFromImage
 class ExampleUnitTest {
 
     private val client = HttpClient(OkHttp) {
-        engine {
-            config {
-                protocols(listOf(Protocol.HTTP_1_1))
-            }
-        }
-        install(JsonFeature) {
-            serializer = KotlinxSerializer()
-        }
-        install(HttpTimeout) {
-            requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
-            socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
-            connectTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
-        }
-
-        BrowserUserAgent()
+//        install(JsonFeature) {
+//            serializer = KotlinxSerializer()
+//        }
+//        install(HttpTimeout) {
+//            requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+//            socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+//            connectTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+//        }
+//
+//        install(HitomiPlugin)
+//        BrowserUserAgent()
     }
 
     @Test
@@ -57,9 +55,9 @@ class ExampleUnitTest {
             testCases.zip(expectedSize).forEach { (query, size) ->
                 val result = client.getGalleryIDsForQuery(query)
 
-                println("${result.size} results for $query")
+                println("${result.capacity()} results for $query")
 
-                assertTrue(result.size >= size)
+                assertTrue(result.capacity() >= size)
             }
         }
     }
@@ -86,9 +84,9 @@ class ExampleUnitTest {
             testCases.zip(expectedSize).forEach { (query, size) ->
                 val result = client.doSearch(query)
 
-                println("${result.size} results for $query")
+                println("${result.limit()} results for $query")
 
-                assertTrue(result.size >= size)
+                assertTrue(result.limit() >= size)
             }
         }
     }
@@ -103,6 +101,15 @@ class ExampleUnitTest {
             val images = galleryInfo.files.map { client.imageUrlFromImage(it) }
 
             println(images)
+        }
+    }
+
+    @Test
+    fun test_getGalleryIDsFromNozomi() {
+        runBlocking {
+            val result = client.getGalleryIDsFromNozomi(null, "index", "all")
+
+            println("${result.capacity()} results")
         }
     }
 }

@@ -17,13 +17,19 @@
 package xyz.quaver.pupil.sources.hitomi.lib
 
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.features.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import java.net.URL
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.IntBuffer
 import java.security.MessageDigest
 import kotlin.math.min
 
@@ -68,7 +74,7 @@ suspend fun HttpClient.getIndexVersion(name: String): String =
 
 //search.js
 @OptIn(ExperimentalUnsignedTypes::class)
-suspend fun HttpClient.getGalleryIDsForQuery(query: String) : Set<Int> {
+suspend fun HttpClient.getGalleryIDsForQuery(query: String) : IntBuffer {
     query.replace("_", " ").let {
         if (it.indexOf(':') > -1) {
             val sides = it.split(":")
@@ -102,7 +108,7 @@ suspend fun HttpClient.getGalleryIDsForQuery(query: String) : Set<Int> {
         if (data != null)
             return getGalleryIDsFromData(data)
 
-        return emptySet()
+        return IntBuffer.allocate(0)
     }
 }
 
@@ -119,7 +125,7 @@ suspend fun HttpClient.getSuggestionsForQuery(query: String) : List<Suggestion> 
         }
 
         val key = hashTerm(term)
-        val node = getNodeAtAddress(field, 0) ?: return emptyList()
+        val node = getNodeAtAddress(field, 0)
         val data = bSearch(field, key, node)
 
         if (data != null)
@@ -136,13 +142,10 @@ suspend fun HttpClient.getSuggestionsFromData(field: String, data: Pair<Long, In
     if (length > 10000 || length <= 0)
         throw Exception("length $length is too long")
 
-    val inbuf = getURLAtRange(url, offset.until(offset+length))
+    val buffer = getURLAtRange(url, offset.until(offset+length))
 
     val suggestions = ArrayList<Suggestion>()
 
-    val buffer = ByteBuffer
-        .wrap(inbuf)
-        .order(ByteOrder.BIG_ENDIAN)
     val numberOfSuggestions = buffer.int
 
     if (numberOfSuggestions > 100 || numberOfSuggestions <= 0)
@@ -151,12 +154,11 @@ suspend fun HttpClient.getSuggestionsFromData(field: String, data: Pair<Long, In
     for (i in 0.until(numberOfSuggestions)) {
         var top = buffer.int
 
-        val ns = inbuf.sliceArray(buffer.position().until(buffer.position()+top)).toString(charset("UTF-8"))
-        buffer.position(buffer.position()+top)
+        val ns = ByteArray(top).apply { buffer.get(this) }.toString(charset("UTF-8"))
 
         top = buffer.int
 
-        val tag = inbuf.sliceArray(buffer.position().until(buffer.position()+top)).toString(charset("UTF-8"))
+        val tag = ByteArray(top).apply { buffer.get(this) }.toString(charset("UTF-8"))
         buffer.position(buffer.position()+top)
 
         val count = buffer.int
@@ -175,58 +177,43 @@ suspend fun HttpClient.getSuggestionsFromData(field: String, data: Pair<Long, In
     return suggestions
 }
 
-suspend fun HttpClient.getGalleryIDsFromNozomi(area: String?, tag: String, language: String) : Set<Int> {
+suspend fun HttpClient.getGalleryIDsFromNozomi(area: String?, tag: String, language: String) : IntBuffer {
     val nozomiAddress =
             when(area) {
                 null -> "$protocol//$domain/$compressed_nozomi_prefix/$tag-$language$nozomiextension"
                 else -> "$protocol//$domain/$compressed_nozomi_prefix/$area/$tag-$language$nozomiextension"
             }
 
-    val bytes: ByteArray = withContext(Dispatchers.IO) {
-        runCatching {
-            this@getGalleryIDsFromNozomi.get<ByteArray>(nozomiAddress)
-        }.getOrNull()
-    } ?: return emptySet()
+    return withContext(Dispatchers.IO) {
+        val contentLength = async {
+            head<HttpResponse>(nozomiAddress) {
+                header("Accept-Encoding", "identity")
+            }.headers[HttpHeaders.ContentLength]!!.toInt()
+        }
 
-    val nozomi = mutableSetOf<Int>()
+        get<HttpStatement>(nozomiAddress).execute { response ->
+            ByteBuffer.allocateDirect(contentLength.await()).apply {
+                val channel: ByteReadChannel = response.receive()
 
-    val arrayBuffer = ByteBuffer
-        .wrap(bytes)
-        .order(ByteOrder.BIG_ENDIAN)
+                val bytesRead = channel.readFully(this)
 
-    while (arrayBuffer.hasRemaining())
-        nozomi.add(arrayBuffer.int)
+                assert(bytesRead == this.capacity())
+                assert(!this.hasRemaining())
+                assert(channel.availableForRead == 0)
 
-    return nozomi
+                rewind()
+            }.asIntBuffer()
+        }
+    }
 }
 
-suspend fun HttpClient.getGalleryIDsFromData(data: Pair<Long, Int>) : Set<Int> {
+suspend fun HttpClient.getGalleryIDsFromData(data: Pair<Long, Int>) : IntBuffer {
     val url = "$protocol//$domain/$galleries_index_dir/galleries.${getGalleriesIndexVersion()}.data"
     val (offset, length) = data
     if (length > 100000000 || length <= 0)
         throw Exception("length $length is too long")
 
-    val inbuf = getURLAtRange(url, offset.until(offset+length))
-
-    val galleryIDs = mutableSetOf<Int>()
-
-    val buffer = ByteBuffer
-        .wrap(inbuf)
-        .order(ByteOrder.BIG_ENDIAN)
-
-    val numberOfGalleryIDs = buffer.int
-
-    val expectedLength = numberOfGalleryIDs*4+4
-
-    if (numberOfGalleryIDs > 10000000 || numberOfGalleryIDs <= 0)
-        throw Exception("number_of_galleryids $numberOfGalleryIDs is too long")
-    else if (inbuf.size != expectedLength)
-        throw Exception("inbuf.byteLength ${inbuf.size} != expected_length $expectedLength")
-
-    for (i in 0.until(numberOfGalleryIDs))
-        galleryIDs.add(buffer.int)
-
-    return galleryIDs
+    return getURLAtRange(url, offset.until(offset+length)).asIntBuffer()
 }
 
 suspend fun HttpClient.getNodeAtAddress(field: String, address: Long) : Node {
@@ -243,22 +230,34 @@ suspend fun HttpClient.getNodeAtAddress(field: String, address: Long) : Node {
     return decodeNode(nodedata)
 }
 
-suspend fun HttpClient.getURLAtRange(url: String, range: LongRange) : ByteArray = withContext(Dispatchers.IO) {
-    this@getURLAtRange.get(url) {
+suspend fun HttpClient.getURLAtRange(url: String, range: LongRange) : ByteBuffer = withContext(Dispatchers.IO) {
+    val contentLength = async {
+        head<HttpResponse>(url) {
+            header("Accept-Encoding", "identity")
+        }.headers[HttpHeaders.ContentLength]!!.toInt()
+    }
+
+    get<HttpStatement>(url) {
         header("Range", "bytes=${range.first}-${range.last}")
+    }.execute { response ->
+        ByteBuffer.allocateDirect(contentLength.await()).apply {
+            val channel: ByteReadChannel = response.receive()
+
+            val bytesRead = channel.readFully(this)
+
+            assert(bytesRead == this.capacity())
+            assert(!this.hasRemaining())
+            assert(channel.availableForRead == 0)
+
+            rewind()
+        }
     }
 }
 
 @OptIn(ExperimentalUnsignedTypes::class)
 data class Node(val keys: List<UByteArray>, val datas: List<Pair<Long, Int>>, val subNodeAddresses: List<Long>)
 @OptIn(ExperimentalUnsignedTypes::class)
-fun decodeNode(data: ByteArray) : Node {
-    val buffer = ByteBuffer
-        .wrap(data)
-        .order(ByteOrder.BIG_ENDIAN)
-
-    val uData = data.toUByteArray()
-
+fun decodeNode(buffer: ByteBuffer) : Node {
     val numberOfKeys = buffer.int
     val keys = ArrayList<UByteArray>()
 
@@ -268,8 +267,7 @@ fun decodeNode(data: ByteArray) : Node {
         if (keySize == 0 || keySize > 32)
             throw Exception("fatal: !keySize || keySize > 32")
 
-        keys.add(uData.sliceArray(buffer.position().until(buffer.position()+keySize)))
-        buffer.position(buffer.position()+keySize)
+        keys.add(ByteArray(keySize).apply { buffer.get(this) }.toUByteArray())
     }
 
     val numberOfDatas = buffer.int

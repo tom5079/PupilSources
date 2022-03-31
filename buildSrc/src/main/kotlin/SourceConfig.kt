@@ -41,12 +41,12 @@ object Accompanist {
 }
 
 object AndroidX {
-    const val APPCOMPAT = "androidx.appcompat:appcompat:1.4.0"
+    const val APPCOMPAT = "androidx.appcompat:appcompat:1.4.1"
     const val CORE_KTX = "androidx.core:core-ktx:1.7.0"
-    const val NAVIGATION_COMPOSE = "androidx.navigation:navigation-compose:2.4.0-rc01"
-    const val ROOM_RUNTIME = "androidx.room:room-runtime:2.4.0"
-    const val ROOM_COMPILER = "androidx.room:room-compiler:2.4.0"
-    const val ROOM_KTX = "androidx.room:room-ktx:2.4.0"
+    const val NAVIGATION_COMPOSE = "androidx.navigation:navigation-compose:2.4.1"
+    const val ROOM_RUNTIME = "androidx.room:room-runtime:2.4.2"
+    const val ROOM_COMPILER = "androidx.room:room-compiler:2.4.2"
+    const val ROOM_KTX = "androidx.room:room-ktx:2.4.2"
     const val DATASTORE = "androidx.datastore:datastore:1.0.0"
     const val DATASTORE_PREFERENCES = "androidx.datastore:datastore-preferences:1.0.0"
 }
