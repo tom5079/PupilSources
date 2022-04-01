@@ -168,7 +168,7 @@ fun TagChip(
                 Box(Modifier.size(16.dp))
         }
     ) { _, tagPart ->
-        Text(tagPart)
+        Text(tagPart, style = MaterialTheme.typography.body2)
     }
 }
 
