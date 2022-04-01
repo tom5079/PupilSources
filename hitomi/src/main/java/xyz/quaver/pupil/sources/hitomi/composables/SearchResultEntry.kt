@@ -273,56 +273,13 @@ fun TagChip(
     onClick: (String) -> Unit = { },
     onFavoriteClick: (String) -> Unit = { }
 ) {
-    val tagParts = tag.split(":", limit = 2).let {
-        if (it.size == 1) listOf("", it.first())
-        else it
-    }
-
-    val icon = when (tagParts[0]) {
-        "male" -> Icons.Filled.Male
-        "female" -> Icons.Filled.Female
-        else -> null
-    }
-
-    val (surfaceColor, textTint) = when {
-        isFavorite -> Pair(Orange500, Color.White)
-        else -> when (tagParts[0]) {
-            "male" -> Pair(Blue700, Color.White)
-            "female" -> Pair(Pink600, Color.White)
-            else -> Pair(MaterialTheme.colors.background, MaterialTheme.colors.onBackground)
-        }
-    }
-
     val starIcon = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarOutline
 
-    Surface(
-        modifier = Modifier.padding(2.dp),
+    TagChipLayout(
+        tag,
+        isFavorite,
         onClick = { onClick(tag) },
-        shape = RoundedCornerShape(16.dp),
-        color = surfaceColor,
-        elevation = 2.dp
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (icon != null)
-                Icon(
-                    icon,
-                    contentDescription = "Icon",
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .size(24.dp),
-                    tint = Color.White
-                )
-            else
-                Box(Modifier.size(16.dp))
-
-            Text(
-                tagParts[1],
-                color = textTint,
-                style = MaterialTheme.typography.body2
-            )
-
+        rightIcon = { _, _ ->
             Icon(
                 starIcon,
                 contentDescription = "Favorites",
@@ -330,9 +287,13 @@ fun TagChip(
                     .padding(8.dp)
                     .size(16.dp)
                     .clip(CircleShape)
-                    .clickable { onFavoriteClick(tag) },
-                tint = textTint
+                    .clickable { onFavoriteClick(tag) }
             )
         }
+    ) { _, tagPart ->
+        Text(
+            tagPart,
+            style = MaterialTheme.typography.body2
+        )
     }
 }

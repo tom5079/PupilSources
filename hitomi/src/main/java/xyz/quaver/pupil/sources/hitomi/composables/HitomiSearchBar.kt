@@ -105,18 +105,19 @@ fun TagChipIcon(area: String) {
         Box(Modifier.size(16.dp))
 }
 
-@OptIn(ExperimentalGraphicsApi::class)
+@OptIn(ExperimentalGraphicsApi::class, ExperimentalMaterialApi::class)
 @Composable
 fun TagChipLayout(
     tag: String,
+    isFavorite: Boolean = false,
+    onClick: (() -> Unit)? = null,
     leftIcon: @Composable (String, String) -> Unit = { area, _ -> TagChipIcon(area) },
     rightIcon: @Composable (String, String) -> Unit,
-    content: @Composable (String, String) -> Unit
+    content: @Composable (String, String) -> Unit,
 ) {
     val (area, tagPart) = tag.split(':', limit = 2).let {
         if (it.size == 1 || it[0] !in iconMap.keys) listOf("", tag) else it
     }
-    val isFavorite = false
 
     val surfaceColor = if (isFavorite) Orange500 else when (area) {
         "male" -> Blue700
@@ -124,16 +125,15 @@ fun TagChipLayout(
         else -> MaterialTheme.colors.surface
     }
 
-    Surface(
-        modifier = Modifier
-            .padding(2.dp)
-            .height(32.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = surfaceColor,
-        elevation = 8.dp
-    ) {
+    val contentColor =
+        if (surfaceColor == MaterialTheme.colors.surface)
+            MaterialTheme.colors.onSurface
+        else
+            Color.White
+
+    val inner = @Composable {
         CompositionLocalProvider(
-            LocalContentColor provides contentColorFor(surfaceColor)
+            LocalContentColor provides contentColor
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -144,6 +144,26 @@ fun TagChipLayout(
             }
         }
     }
+
+    val modifier = Modifier.padding(2.dp).height(32.dp)
+
+    if (onClick != null)
+        Surface(
+            modifier = modifier,
+            shape = RoundedCornerShape(16.dp),
+            color = surfaceColor,
+            elevation = 8.dp,
+            onClick = onClick,
+            content = inner
+        )
+    else
+        Surface(
+            modifier,
+            shape = RoundedCornerShape(32.dp),
+            color = surfaceColor,
+            elevation = 8.dp,
+            content = inner
+        )
 }
 
 @Composable
