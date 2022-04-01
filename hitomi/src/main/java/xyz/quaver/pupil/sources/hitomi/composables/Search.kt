@@ -1,13 +1,11 @@
 package xyz.quaver.pupil.sources.hitomi.composables
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.Sort
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,7 +14,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.datastore.core.DataStore
@@ -29,7 +26,6 @@ import xyz.quaver.pupil.sources.R
 import xyz.quaver.pupil.sources.base.util.withLocalResource
 import xyz.quaver.pupil.sources.hitomi.HitomiDatabase
 import xyz.quaver.pupil.sources.hitomi.HitomiSearchResultViewModel
-import xyz.quaver.pupil.sources.hitomi.lib.SortOptions
 import java.util.*
 import com.google.accompanist.insets.ui.Scaffold
 import xyz.quaver.pupil.sources.base.composables.*
@@ -53,6 +49,8 @@ fun SearchLayout(
     HitomiSearchBar(
         query = model.query,
         onQueryChange = { model.query = it },
+        sortOption = model.sortOption,
+        onSortOptionChange = { model.sortOption = it },
         topOffset = model.searchBarOffset,
         onTopOffsetChange = {
             model.searchBarOffset = it
@@ -141,7 +139,7 @@ fun Search(navigateToReader: (itemID: String) -> Unit) {
         }
     }
 
-    LaunchedEffect(model.currentPage, model.sortByPopularity) {
+    LaunchedEffect(model.currentPage, model.sortOption) {
         model.search()
     }
 

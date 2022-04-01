@@ -67,7 +67,7 @@ suspend fun HttpClient.doSearch(query: String, sortOption: SortOptions = SortOpt
         }
     }
 
-    val set = mutableSetOf<Int>().apply {
+    val set = buildSet {
         when {
             sortOption != SortOptions.DATE -> getGalleryIDsFromNozomi(sortOption.area, sortOption.tag, "all")
             positiveTerms.isEmpty() -> getGalleryIDsFromNozomi(null, "index", "all")

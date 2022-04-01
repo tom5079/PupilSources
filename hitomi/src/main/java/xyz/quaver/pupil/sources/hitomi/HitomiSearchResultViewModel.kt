@@ -45,7 +45,7 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
 
     private val galleryInfoCache = LruCache<Int, GalleryInfo>(100)
 
-    var sortByPopularity by mutableStateOf(SortOptions.DATE)
+    var sortOption by mutableStateOf(SortOptions.DATE)
 
     private var searchJob: Job? = null
     fun search() {
@@ -60,7 +60,7 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
             error = false
 
             searchJob = launch {
-                if (cachedQuery != query || cachedSortByPopularity != sortByPopularity || cache != null) {
+                if (cachedQuery != query || cachedSortByPopularity != sortOption || cache != null) {
                     cachedQuery = null
                     cache = null
 
@@ -69,7 +69,7 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
                     val result = withContext(Dispatchers.Unconfined) {
                         runCatching {
                             logTime("doSearch") {
-                                client.doSearch(query, sortByPopularity)
+                                client.doSearch(query, sortOption)
                             }
                         }.onFailure {
                             it.printStackTrace()
@@ -81,7 +81,7 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
 
                     cache = result
                     cachedQuery = query
-                    cachedSortByPopularity = sortByPopularity
+                    cachedSortByPopularity = sortOption
                     totalItems = result?.capacity() ?: 0
                     maxPage = ceil(totalItems / resultsPerPage.toDouble()).toInt()
                 }
