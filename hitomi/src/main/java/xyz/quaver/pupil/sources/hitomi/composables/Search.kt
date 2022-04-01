@@ -3,6 +3,8 @@ package xyz.quaver.pupil.sources.hitomi.composables
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shuffle
@@ -16,6 +18,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.datastore.core.DataStore
 import com.google.accompanist.insets.*
 import kotlinx.coroutines.launch
@@ -69,7 +72,10 @@ fun SearchLayout(
                 )
             }
         ) { contentPadding ->
-            Box(Modifier.padding(contentPadding).fillMaxSize()) {
+            Box(
+                Modifier
+                    .padding(contentPadding)
+                    .fillMaxSize()) {
                 OverscrollPager(
                     currentPage = model.currentPage,
                     prevPageAvailable = model.prevPageAvailable,
@@ -109,8 +115,74 @@ fun SearchLayout(
                     }
                 }
 
-                if (model.loading)
-                    CircularProgressIndicator(Modifier.align(Alignment.Center))
+                val exception = model.exception
+
+                when {
+                    exception != null -> {
+                        var exceptionDetailDialog by remember { mutableStateOf(false) }
+
+                        Column(
+                            Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CompositionLocalProvider(LocalContentAlpha provides 0.5f) {
+                                Text("(×_×)⌒☆", style = MaterialTheme.typography.h2)
+                            }
+                            Text("An Error occurred")
+                            Row {
+                                TextButton(onClick = { exceptionDetailDialog = true }) {
+                                    Text("Detail")
+                                }
+                                TextButton(onClick = { onSearch() }) {
+                                    Text("Retry")
+                                }
+                            }
+                        }
+
+                        if (exceptionDetailDialog)
+                            Dialog(onDismissRequest = { exceptionDetailDialog = false }) {
+                                Card {
+                                    Column(
+                                        modifier = Modifier.padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.high) {
+                                            Text(
+                                                exception::class.simpleName ?: "Exception",
+                                                style = MaterialTheme.typography.h6
+                                            )
+                                        }
+
+                                        CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.medium) {
+                                            Text(
+                                                exception.stackTraceToString(),
+                                                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())
+                                            )
+                                        }
+
+                                        TextButton(
+                                            modifier = Modifier.align(Alignment.End),
+                                            onClick = { exceptionDetailDialog = false }
+                                        ) {
+                                            Text("OK")
+                                        }
+                                    }
+                                }
+                            }
+                    }
+                    model.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    model.searchResults.isEmpty() -> {
+                        Column(
+                            Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CompositionLocalProvider(LocalContentAlpha provides 0.5f) {
+                                Text("(ﾟoﾟ;;", style = MaterialTheme.typography.h2)
+                            }
+                            Text("No result")
+                        }
+                    }
+                }
             }
         }
     }

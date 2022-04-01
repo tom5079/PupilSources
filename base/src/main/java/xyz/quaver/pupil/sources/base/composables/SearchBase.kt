@@ -62,7 +62,7 @@ open class SearchBaseViewModel<T> : ViewModel() {
     var query by mutableStateOf("")
 
     var loading by mutableStateOf(false)
-    var error by mutableStateOf(false)
+    var exception by mutableStateOf<Throwable?>(null)
 
     //region UI
     var isFabVisible by  mutableStateOf(true)

@@ -30,7 +30,6 @@ import org.kodein.di.DIAware
 import org.kodein.di.instance
 import xyz.quaver.pupil.sources.base.composables.SearchBaseViewModel
 import xyz.quaver.pupil.sources.hitomi.lib.*
-import xyz.quaver.pupil.sources.hitomi.lib.logTime
 import java.nio.IntBuffer
 import kotlin.math.ceil
 import kotlin.math.max
@@ -57,10 +56,10 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
             searchResults.clear()
             searchBarOffset = 0
             loading = true
-            error = false
+            exception = null
 
             searchJob = launch {
-                if (cachedQuery != query || cachedSortByPopularity != sortOption || cache != null) {
+                if (cachedQuery != query || cachedSortByPopularity != sortOption || cache == null) {
                     cachedQuery = null
                     cache = null
 
@@ -68,12 +67,9 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
 
                     val result = withContext(Dispatchers.Unconfined) {
                         runCatching {
-                            logTime("doSearch") {
-                                client.doSearch(query, sortOption)
-                            }
+                            client.doSearch(query, sortOption)
                         }.onFailure {
-                            it.printStackTrace()
-                            error = true
+                            exception = it
                         }.getOrNull()
                     }
 
@@ -92,7 +88,6 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
 
                 range.map { cache!![it] }.map { galleryID ->
                     yield()
-                    loading = false
                     async(Dispatchers.Unconfined) {
                         galleryInfoCache.get(galleryID) ?: client.getGalleryInfo(galleryID).also {
                             galleryInfoCache.put(galleryID, it)
@@ -101,9 +96,9 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
                 }.forEach {
                     runCatching {
                         searchResults.add(it.await())
+                        loading = false
                     }.onFailure {
-                        it.printStackTrace()
-                        error = true
+                        exception = it
                     }
                 }
             }
