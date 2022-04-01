@@ -242,9 +242,126 @@ fun InputChip(
     }
 }
 
+@Composable
+private fun Normal(
+    query: String,
+    sortOption: SortOptions,
+    onSortOptionChange: (SortOptions) -> Unit,
+    onStateChange: (HitomiSearchBarState) -> Unit
+) {
+    val tags = query.split(' ')
+    val scrollState = rememberScrollState()
+
+    Box {
+        Row(
+            modifier = Modifier.height(48.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                Modifier
+                    .weight(1f)
+                    .horizontalScroll(scrollState),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                tags.forEach { tag ->
+                    if (tag.isNotEmpty()) TagChip(tag.replace('_', ' '))
+                }
+            }
+
+            Row {
+                var expanded by remember { mutableStateOf(false) }
+
+                IconButton(onClick = { onStateChange(HitomiSearchBarState.SETTINGS) }) {
+                    withLocalResource {
+                        Image(
+                            painter = painterResource(id = R.mipmap.ic_launcher),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                IconButton(onClick = { expanded = true }) {
+                    Icon(Icons.Default.Sort, contentDescription = null)
+                }
+
+                val onClick: (SortOptions) -> Unit = {
+                    expanded = false
+                    onSortOptionChange(it)
+                }
+                DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+                    @Composable
+                    fun SortOptionsMenuItem(text: String, currentSortOption: SortOptions, divider: Boolean = true) {
+                        DropdownMenuItem(onClick = { onClick(currentSortOption) }) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text(text)
+                                RadioButton(selected = sortOption == currentSortOption, onClick = { onClick(currentSortOption) })
+                            }
+                        }
+
+                        if (divider) Divider()
+                    }
+
+                    SortOptionsMenuItem("Date Added", SortOptions.DATE)
+                    SortOptionsMenuItem("Popular: Today", SortOptions.POPULAR_TODAY)
+                    SortOptionsMenuItem("Popular: Week", SortOptions.POPULAR_WEEK)
+                    SortOptionsMenuItem("Popular: Month", SortOptions.POPULAR_MONTH)
+                    SortOptionsMenuItem("Popular: Year", SortOptions.POPULAR_YEAR, divider = false)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Search(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    focusRequester: FocusRequester
+) {
+    val tags = query.split(' ')
+
+    Column {
+        FlowRow(
+            modifier = Modifier.padding(8.dp),
+            mainAxisSpacing = 8.dp
+        ) {
+            tags.dropLast(1).forEach { tag ->
+                TagChip(tag.replace('_', ' ')) {
+                    onQueryChange(tags.filter { it != tag }.joinToString(" "))
+                }
+            }
+
+            InputChip(
+                tag = tags.last().replace('_', ' '),
+                onTagChange = {
+                    onQueryChange(buildString {
+                        tags.dropLast(1).forEach {
+                            append(it)
+                            append(' ')
+                        }
+
+                        append(it.replace(' ', '_'))
+                    })
+                },
+                onEnter = {
+                    if (!query.endsWith(' ')) onQueryChange("$query ")
+                },
+                onRemove = {
+                    onQueryChange(query.dropLastWhile { it != ' ' }.dropLast(1))
+                },
+                focusRequester = focusRequester
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun HitomiSearchBar(
+internal fun HitomiSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     sortOption: SortOptions,
@@ -317,109 +434,20 @@ fun HitomiSearchBar(
                 },
             elevation = if (isFocused) 16.dp else 8.dp
         ) {
-            val tags = query.split(' ')
-
             when (state) {
-                HitomiSearchBarState.NORMAL -> {
-                    val scrollState = rememberScrollState()
+                HitomiSearchBarState.NORMAL -> Normal(
+                    query,
+                    sortOption,
+                    onSortOptionChange,
+                    onStateChange = { state = it }
+                )
+                HitomiSearchBarState.SEARCH -> Search(
+                    query,
+                    onQueryChange,
+                    focusRequester
+                )
+                HitomiSearchBarState.SETTINGS -> {
 
-                    Box {
-                        Row(
-                            modifier = Modifier.height(48.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                Modifier
-                                    .weight(1f)
-                                    .horizontalScroll(scrollState),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                tags.forEach { tag ->
-                                    if (tag.isNotEmpty()) TagChip(tag.replace('_', ' '))
-                                }
-                            }
-
-                            Row {
-                                var expanded by remember { mutableStateOf(false) }
-
-                                IconButton(onClick = { state = HitomiSearchBarState.SETTINGS }) {
-                                    withLocalResource {
-                                        Image(
-                                            painter = painterResource(id = R.mipmap.ic_launcher),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                }
-
-                                IconButton(onClick = { expanded = true }) {
-                                    Icon(Icons.Default.Sort, contentDescription = null)
-                                }
-
-                                val onClick: (SortOptions) -> Unit = {
-                                    expanded = false
-                                    onSortOptionChange(it)
-                                }
-                                DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
-                                    @Composable
-                                    fun SortOptionsMenuItem(text: String, currentSortOption: SortOptions, divider: Boolean = true) {
-                                        DropdownMenuItem(onClick = { onClick(currentSortOption) }) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                            ) {
-                                                Text(text)
-                                                RadioButton(selected = sortOption == currentSortOption, onClick = { onClick(currentSortOption) })
-                                            }
-                                        }
-
-                                        if (divider) Divider()
-                                    }
-
-                                    SortOptionsMenuItem("Date Added", SortOptions.DATE)
-                                    SortOptionsMenuItem("Popular: Today", SortOptions.POPULAR_TODAY)
-                                    SortOptionsMenuItem("Popular: Week", SortOptions.POPULAR_WEEK)
-                                    SortOptionsMenuItem("Popular: Month", SortOptions.POPULAR_MONTH)
-                                    SortOptionsMenuItem("Popular: Year", SortOptions.POPULAR_YEAR, divider = false)
-                                }
-                            }
-                        }
-                    }
-                }
-                HitomiSearchBarState.SEARCH -> {
-                    Column {
-                        FlowRow(
-                            modifier = Modifier.padding(8.dp),
-                            mainAxisSpacing = 8.dp
-                        ) {
-                            tags.dropLast(1).forEach { tag ->
-                                TagChip(tag.replace('_', ' ')) {
-                                    onQueryChange(tags.filter { it != tag }.joinToString(" "))
-                                }
-                            }
-
-                            InputChip(
-                                tag = tags.last().replace('_', ' '),
-                                onTagChange = {
-                                    onQueryChange(buildString {
-                                        tags.dropLast(1).forEach {
-                                            append(it)
-                                            append(' ')
-                                        }
-
-                                        append(it.replace(' ', '_'))
-                                    })
-                                },
-                                onEnter = {
-                                    if (!query.endsWith(' ')) onQueryChange("$query ")
-                                },
-                                onRemove = {
-                                    onQueryChange(query.dropLastWhile { it != ' ' }.dropLast(1))
-                                },
-                                focusRequester = focusRequester
-                            )
-                        }
-                    }
                 }
             }
         }
