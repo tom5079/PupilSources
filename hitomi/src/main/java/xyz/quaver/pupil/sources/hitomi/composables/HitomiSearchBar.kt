@@ -263,6 +263,11 @@ private fun Normal(
                     .horizontalScroll(scrollState),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Box(Modifier.size(8.dp))
+
+                if (query.isEmpty())
+                    Text("Search...", style = MaterialTheme.typography.subtitle1)
+
                 tags.forEach { tag ->
                     if (tag.isNotEmpty()) TagChip(tag.replace('_', ' '))
                 }
