@@ -233,15 +233,13 @@ fun TagGroup(
 ) {
     var isFolded by remember { mutableStateOf(true) }
 
-    val favoriteTagsInList = favorites intersect tags.toSet()
-
     CompositionLocalProvider(LocalMinimumTouchTargetEnforcement provides false) {
         FlowRow(Modifier.padding(0.dp, 16.dp)) {
-            tags.sortedBy { if (favoriteTagsInList.contains(it)) 0 else 1 }
+            tags.sortedBy { if (favorites.contains(it)) 0 else 1 }
                 .let { (if (isFolded) it.take(10) else it) }.forEach { tag ->
                     TagChip(
                         tag = tag,
-                        isFavorite = favoriteTagsInList.contains(tag),
+                        isFavorite = favorites.contains(tag),
                         onFavoriteClick = onFavoriteToggle
                     )
                 }
