@@ -50,6 +50,7 @@ object AndroidX {
     const val ROOM_RUNTIME = "androidx.room:room-runtime:2.4.2"
     const val ROOM_COMPILER = "androidx.room:room-compiler:2.4.2"
     const val ROOM_KTX = "androidx.room:room-ktx:2.4.2"
+    const val ROOM_TESTING = "androidx.room:room-testing:2.4.2"
     const val DATASTORE = "androidx.datastore:datastore:1.0.0"
     const val DATASTORE_PREFERENCES = "androidx.datastore:datastore-preferences:1.0.0"
 }

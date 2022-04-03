@@ -43,6 +43,12 @@ android {
         }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += mapOf("room.schemaLocation" to "$projectDir/schemas")
+            }
+        }
     }
 
     buildTypes {
@@ -67,6 +73,10 @@ android {
     }
     composeOptions {
         kotlinCompilerExtensionVersion = Versions.JETPACK_COMPOSE
+    }
+
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
     }
 }
 
@@ -160,6 +170,7 @@ dependencies {
     androidTestImplementation(AndroidTest.RUNNER)
     androidTestImplementation(AndroidTest.ESPRESSO)
     androidTestImplementation(JetpackCompose.UI_TEST)
+    androidTestImplementation(AndroidX.ROOM_TESTING)
     debugImplementation(JetpackCompose.UI_TEST_MANIFEST)
 }
 

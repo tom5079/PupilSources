@@ -124,7 +124,7 @@ fun Reader(itemID: String) {
                         IconButton(onClick = {
                             coroutineScope.launch {
                                 if (isFavorite) favoritesDao.delete(itemID)
-                                else            favoritesDao.insert(itemID)
+                                else            favoritesDao.insertGallery(itemID)
                             }
                         }) {
                             Icon(

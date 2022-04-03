@@ -22,18 +22,21 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.datastore.core.DataStore
-import com.google.accompanist.insets.*
+import com.google.accompanist.insets.LocalWindowInsets
+import com.google.accompanist.insets.navigationBarsPadding
+import com.google.accompanist.insets.rememberInsetsPaddingValues
+import com.google.accompanist.insets.systemBarsPadding
+import com.google.accompanist.insets.ui.Scaffold
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.kodein.di.compose.rememberInstance
 import org.kodein.di.compose.rememberViewModel
 import xyz.quaver.pupil.proto.Settings
 import xyz.quaver.pupil.sources.R
+import xyz.quaver.pupil.sources.base.composables.*
 import xyz.quaver.pupil.sources.base.util.withLocalResource
 import xyz.quaver.pupil.sources.hitomi.HitomiDatabase
 import xyz.quaver.pupil.sources.hitomi.HitomiSearchResultViewModel
-import java.util.*
-import com.google.accompanist.insets.ui.Scaffold
-import xyz.quaver.pupil.sources.base.composables.*
 import xyz.quaver.pupil.sources.hitomi.lib.SortOptions
 import kotlin.math.roundToInt
 
@@ -41,8 +44,6 @@ import kotlin.math.roundToInt
 fun SearchLayout(
     model: HitomiSearchResultViewModel,
     fabSubMenu: List<SubFabItem>,
-    actions: @Composable RowScope.() -> Unit = { },
-    onSearch: () -> Unit = { },
     content: @Composable BoxScope.(contentPadding: PaddingValues) -> Unit
 ) {
     var isFabExpanded by remember { mutableStateOf(FloatingActionButtonState.COLLAPSED) }
@@ -62,7 +63,11 @@ fun SearchLayout(
             model.searchBarOffset = it
         },
         state = searchBarState,
-        onStateChange = { searchBarState = it },
+        onStateChange = {
+            searchBarState = it
+
+            if (it == HitomiSearchBarState.NORMAL) model.search()
+        },
         actions = {
             var expanded by remember { mutableStateOf(false) }
 
@@ -170,19 +175,16 @@ fun SearchLayout(
                     exception != null -> {
                         var exceptionDetailDialog by remember { mutableStateOf(false) }
 
-                        Column(
+                        ErrorMessage(
                             Modifier.align(Alignment.Center),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            "(×_×)⌒☆"
                         ) {
-                            CompositionLocalProvider(LocalContentAlpha provides 0.5f) {
-                                Text("(×_×)⌒☆", style = MaterialTheme.typography.h2)
-                            }
                             Text("An Error occurred")
                             Row {
                                 TextButton(onClick = { exceptionDetailDialog = true }) {
                                     Text("Detail")
                                 }
-                                TextButton(onClick = { onSearch() }) {
+                                TextButton(onClick = { model.search() }) {
                                     Text("Retry")
                                 }
                             }
@@ -221,13 +223,10 @@ fun SearchLayout(
                     }
                     model.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                     model.searchResults.isEmpty() -> {
-                        Column(
+                        ErrorMessage(
                             Modifier.align(Alignment.Center),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            "(ﾟoﾟ;;"
                         ) {
-                            CompositionLocalProvider(LocalContentAlpha provides 0.5f) {
-                                Text("(ﾟoﾟ;;", style = MaterialTheme.typography.h2)
-                            }
                             Text("No result")
                         }
                     }
@@ -247,9 +246,12 @@ fun Search(navigateToReader: (itemID: String) -> Unit) {
 
     val settingsDataStore: DataStore<Settings> by rememberInstance()
 
-    val favorites by favoritesDao.getAll().collectAsState(emptyList())
-    val favoritesSet by derivedStateOf {
-        Collections.unmodifiableSet(favorites.mapTo(mutableSetOf()) { it.item })
+    val favoritesFlow = favoritesDao.getAll()
+
+    val favorites by produceState<Set<String>>(emptySet()) {
+        favoritesFlow
+            .map { it.toSet() }
+            .collect { value = it }
     }
 
     LaunchedEffect(Unit) {
@@ -280,18 +282,23 @@ fun Search(navigateToReader: (itemID: String) -> Unit) {
                     Icon(painterResource(R.drawable.numeric), contentDescription = null)
                 }
             }
-        ),
-        onSearch = { model.search() }
+        )
     ) { contentPadding ->
         LazyColumn(modifier = Modifier.systemBarsPadding(top = false, bottom = false), contentPadding = contentPadding) {
             items(model.searchResults) {
                 DetailedSearchResult(
                     it,
-                    favorites = favoritesSet,
-                    onFavoriteToggle = {
+                    favorites = favorites,
+                    onGalleryFavoriteToggle = {
                         coroutineScope.launch {
-                            if (it in favoritesSet) favoritesDao.delete(it)
-                            else favoritesDao.insert(it)
+                            if (it in favorites) favoritesDao.delete(it)
+                            else favoritesDao.insertGallery(it)
+                        }
+                    },
+                    onTagFavoriteToggle = {
+                        coroutineScope.launch {
+                            if (it in favorites) favoritesDao.delete(it)
+                            else favoritesDao.insertTag(it)
                         }
                     },
                 ) { result ->

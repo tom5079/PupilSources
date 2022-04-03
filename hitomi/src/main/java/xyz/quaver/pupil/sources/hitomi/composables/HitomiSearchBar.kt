@@ -27,7 +27,6 @@ import androidx.compose.ui.graphics.ExperimentalGraphicsApi
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -39,15 +38,15 @@ import com.google.accompanist.insets.LocalWindowInsets
 import com.google.accompanist.insets.navigationBarsWithImePadding
 import com.google.accompanist.insets.rememberInsetsPaddingValues
 import com.google.accompanist.insets.statusBarsPadding
+import io.ktor.client.*
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.job
-import xyz.quaver.pupil.sources.R
+import org.kodein.di.compose.rememberInstance
+import xyz.quaver.pupil.sources.base.composables.ErrorMessage
 import xyz.quaver.pupil.sources.base.theme.Blue700
 import xyz.quaver.pupil.sources.base.theme.Orange500
 import xyz.quaver.pupil.sources.base.theme.Pink600
-import xyz.quaver.pupil.sources.base.util.withLocalResource
-import xyz.quaver.pupil.sources.hitomi.lib.SortOptions
-import java.lang.IllegalStateException
+import xyz.quaver.pupil.sources.hitomi.lib.Suggestion
+import xyz.quaver.pupil.sources.hitomi.lib.getSuggestionsForQuery
 
 enum class HitomiSearchBarState {
     NORMAL,
@@ -91,6 +90,7 @@ private val iconMap = mapOf(
     "series" to Icons.Default.Book,
     "type" to Icons.Default.Folder,
     "language" to Icons.Default.Translate,
+    "tag" to Icons.Default.LocalOffer
 )
 
 @Composable
@@ -106,18 +106,19 @@ fun TagChipIcon(area: String) {
                 .size(24.dp)
         )
     else
-        Box(Modifier.size(16.dp))
+        Spacer(Modifier.width(16.dp))
 }
 
 @OptIn(ExperimentalGraphicsApi::class, ExperimentalMaterialApi::class)
 @Composable
-fun TagChipLayout(
+fun TagChip(
     tag: String,
     isFavorite: Boolean = false,
-    onClick: (() -> Unit)? = null,
+    enabled: Boolean = true,
+    onClick: (String) -> Unit = { },
     leftIcon: @Composable (String, String) -> Unit = { area, _ -> TagChipIcon(area) },
-    rightIcon: @Composable (String, String) -> Unit,
-    content: @Composable (String, String) -> Unit,
+    rightIcon: @Composable (String, String) -> Unit = { _, _ -> Spacer(Modifier.width(16.dp)) },
+    content: @Composable (String, String) -> Unit = { _, tagPart -> Text(tagPart) },
 ) {
     val (area, tagPart) = tag.split(':', limit = 2).let {
         if (it.size == 1 || it[0] !in iconMap.keys) listOf("", tag) else it
@@ -137,7 +138,8 @@ fun TagChipLayout(
 
     val inner = @Composable {
         CompositionLocalProvider(
-            LocalContentColor provides contentColor
+            LocalContentColor provides contentColor,
+            LocalTextStyle provides MaterialTheme.typography.body2
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -149,53 +151,26 @@ fun TagChipLayout(
         }
     }
 
-    val modifier = Modifier
-        .padding(2.dp)
-        .height(32.dp)
+    val modifier = Modifier.height(32.dp)
+    val shape = RoundedCornerShape(16.dp)
 
-    if (onClick != null)
+    if (enabled)
         Surface(
             modifier = modifier,
-            shape = RoundedCornerShape(16.dp),
+            shape = shape,
             color = surfaceColor,
             elevation = 8.dp,
-            onClick = onClick,
+            onClick = { onClick(tag) },
             content = inner
         )
     else
         Surface(
             modifier,
-            shape = RoundedCornerShape(32.dp),
+            shape = shape,
             color = surfaceColor,
             elevation = 8.dp,
             content = inner
         )
-}
-
-@Composable
-fun TagChip(
-    tag: String,
-    onRemove: (() -> Unit)? = null
-) {
-    TagChipLayout(
-        tag,
-        rightIcon = { _, _ ->
-            if (onRemove != null)
-                Icon(
-                    Icons.Default.Cancel,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onRemove)
-                )
-            else
-                Box(Modifier.size(16.dp))
-        }
-    ) { _, tagPart ->
-        Text(tagPart, style = MaterialTheme.typography.body2)
-    }
 }
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -207,14 +182,13 @@ fun InputChip(
     onRemove: () -> Unit,
     focusRequester: FocusRequester
 ) {
-    TagChipLayout(
+    TagChip(
         tag,
         rightIcon = { _, _ ->
             Icon(
                 Icons.Default.Cancel,
                 contentDescription = null,
                 modifier = Modifier
-                    .padding(8.dp)
                     .size(16.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onRemove)
@@ -269,6 +243,16 @@ fun InputChip(
 }
 
 @Composable
+fun TagGroup(content: @Composable () -> Unit) {
+    FlowRow(
+        Modifier.padding(8.dp),
+        mainAxisSpacing = 4.dp,
+        crossAxisSpacing = 4.dp,
+        content = content
+    )
+}
+
+@Composable
 private fun Normal(
     query: String,
     actions: @Composable RowScope.() -> Unit
@@ -302,35 +286,91 @@ private fun Normal(
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun Search(
-    query: String,
-    onQueryChange: (String) -> Unit,
+    tags: List<String>,
+    onTagsChange: (List<String>) -> Unit,
     focusRequester: FocusRequester
 ) {
-    val tags = query.split(' ')
-
     var textValue by remember { mutableStateOf(TextFieldValue()) }
+
+    val client: HttpClient by rememberInstance()
+    val suggestions by produceState<List<Suggestion>>(emptyList(), textValue) {
+        textValue.text.let { query ->
+            value = if (query.isNotEmpty()) client.getSuggestionsForQuery(query) else emptyList()
+        }
+    }
 
     Column(
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        FlowRow(
-            modifier = Modifier.padding(8.dp),
-            mainAxisSpacing = 8.dp
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            tags.forEach { tag ->
-                if (tag.isNotEmpty())
-                    TagChip(tag.replace('_', ' ')) {
-                        onQueryChange(tags.filter { it != tag }.joinToString(" "))
+            Text("Query")
+
+            if (tags.isNotEmpty()) {
+                FlowRow(
+                    modifier = Modifier.padding(8.dp),
+                    mainAxisSpacing = 8.dp
+                ) {
+                    tags.forEach { tag ->
+                        TagChip(
+                            tag,
+                            rightIcon = { _, _ ->
+                                Icon(
+                                    Icons.Default.Cancel,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            onTagsChange(tags.filter { it != tag })
+                                        }
+                                )
+                            }
+                        )
                     }
+                }
+            } else {
+                ErrorMessage(
+                    Modifier.align(Alignment.CenterHorizontally),
+                    "(＊´д｀)??"
+                ) {
+                    Text("Empty Search")
+                }
+            }
+
+            if (suggestions.isNotEmpty()) {
+                Divider()
+                Text("Suggestions")
+                TagGroup {
+                    suggestions.forEach { suggestion ->
+                        TagChip(
+                            "${suggestion.n}:${suggestion.s}",
+                            onClick = {
+                                textValue = TextFieldValue()
+                                onTagsChange(tags+it)
+                            }
+                        )
+                    }
+                }
             }
         }
 
         TextField(
             textValue,
             onValueChange = { textValue = it },
-            modifier = Modifier.focusRequester(focusRequester).fillMaxWidth(),
+            modifier = Modifier
+                .focusRequester(focusRequester)
+                .fillMaxWidth(),
             placeholder = { Text("Search...") },
             trailingIcon = {
                 IconButton(onClick = { textValue = TextFieldValue() }) {
@@ -381,6 +421,7 @@ internal fun HitomiSearchBar(
                     delay(100)
                 }
             }
+
     }
 
     BackHandler(isFocused) {
@@ -434,8 +475,10 @@ internal fun HitomiSearchBar(
                     actions
                 )
                 HitomiSearchBarState.SEARCH -> Search(
-                    query,
-                    onQueryChange,
+                    query.split(' ').filter { it.isNotBlank() }.map { it.replace('_', ' ') },
+                    onTagsChange = { tags ->
+                        onQueryChange(tags.joinToString(" ") { it.replace(' ', '_') })
+                    },
                     focusRequester
                 )
                 HitomiSearchBarState.SETTINGS -> {

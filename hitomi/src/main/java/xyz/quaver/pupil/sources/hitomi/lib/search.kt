@@ -18,7 +18,6 @@ package xyz.quaver.pupil.sources.hitomi.lib
 
 import io.ktor.client.*
 import io.ktor.client.call.*
-import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -26,9 +25,7 @@ import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
-import java.net.URL
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.IntBuffer
 import java.security.MessageDigest
 import kotlin.math.min
@@ -159,17 +156,15 @@ suspend fun HttpClient.getSuggestionsFromData(field: String, data: Pair<Long, In
         top = buffer.int
 
         val tag = ByteArray(top).apply { buffer.get(this) }.toString(charset("UTF-8"))
-        buffer.position(buffer.position()+top)
 
         val count = buffer.int
 
         val tagname = sanitize(tag)
-        val u =
-                when(ns) {
-                    "female", "male" -> "/tag/$ns:$tagname${separator}1$extension"
-                    "language" -> "/index-$tagname${separator}1$extension"
-                    else -> "/$ns/$tagname${separator}all${separator}1$extension"
-                }
+        val u = when(ns) {
+            "female", "male" -> "/tag/$ns:$tagname${separator}1$extension"
+            "language" -> "/index-$tagname${separator}1$extension"
+            else -> "/$ns/$tagname${separator}all${separator}1$extension"
+        }
 
         suggestions.add(Suggestion(tag, count, u, ns))
     }
@@ -231,16 +226,10 @@ suspend fun HttpClient.getNodeAtAddress(field: String, address: Long) : Node {
 }
 
 suspend fun HttpClient.getURLAtRange(url: String, range: LongRange) : ByteBuffer = withContext(Dispatchers.IO) {
-    val contentLength = async {
-        head<HttpResponse>(url) {
-            header("Accept-Encoding", "identity")
-        }.headers[HttpHeaders.ContentLength]!!.toInt()
-    }
-
     get<HttpStatement>(url) {
         header("Range", "bytes=${range.first}-${range.last}")
     }.execute { response ->
-        ByteBuffer.allocateDirect(contentLength.await()).apply {
+        ByteBuffer.allocateDirect((range.last-range.first+1).toInt()).apply {
             val channel: ByteReadChannel = response.receive()
 
             val bytesRead = channel.readFully(this)

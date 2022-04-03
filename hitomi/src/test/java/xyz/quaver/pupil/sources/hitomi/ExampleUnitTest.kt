@@ -112,4 +112,10 @@ class ExampleUnitTest {
             println("${result.capacity()} results")
         }
     }
+
+    @Test
+    fun test_getSuggestionsForQuery() = runBlocking {
+        val result = client.getSuggestionsForQuery("lol")
+        println(result)
+    }
 }

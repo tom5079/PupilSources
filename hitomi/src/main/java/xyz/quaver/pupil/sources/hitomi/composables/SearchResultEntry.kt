@@ -25,8 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Female
-import androidx.compose.material.icons.filled.Male
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material.icons.outlined.StarOutline
@@ -35,17 +33,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberImagePainter
 import com.google.accompanist.flowlayout.FlowRow
 import io.ktor.client.*
-import io.ktor.http.*
 import org.kodein.di.compose.rememberInstance
-import xyz.quaver.pupil.sources.base.theme.Blue700
 import xyz.quaver.pupil.sources.base.theme.Orange500
-import xyz.quaver.pupil.sources.base.theme.Pink600
 import xyz.quaver.pupil.sources.hitomi.lib.GalleryInfo
 import xyz.quaver.pupil.sources.hitomi.lib.joinToCapitalizedString
 
@@ -94,7 +88,8 @@ private val languageMap = mapOf(
 fun DetailedSearchResult(
     result: GalleryInfo,
     favorites: Set<String>,
-    onFavoriteToggle: (String) -> Unit = { },
+    onGalleryFavoriteToggle: (String) -> Unit = { },
+    onTagFavoriteToggle: (String) -> Unit = { },
     onClick: (GalleryInfo) -> Unit = { }
 ) {
     val client: HttpClient by rememberInstance()
@@ -179,7 +174,7 @@ fun DetailedSearchResult(
                         TagGroup(
                             tags = result.tags.orEmpty().map { it.toString() },
                             favorites,
-                            onFavoriteToggle = onFavoriteToggle
+                            onFavoriteToggle = onTagFavoriteToggle
                         )
                     }
                 }
@@ -208,7 +203,7 @@ fun DetailedSearchResult(
                         modifier = Modifier
                             .size(24.dp)
                             .clickable {
-                                onFavoriteToggle(result.id)
+                                onGalleryFavoriteToggle(result.id)
                             }
                     )
                 }
@@ -224,7 +219,7 @@ fun DetailedSearchResult(
     }
 }
 
-@ExperimentalMaterialApi
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun TagGroup(
     tags: List<String>,
@@ -233,33 +228,35 @@ fun TagGroup(
 ) {
     var isFolded by remember { mutableStateOf(true) }
 
-    CompositionLocalProvider(LocalMinimumTouchTargetEnforcement provides false) {
-        FlowRow(Modifier.padding(0.dp, 16.dp)) {
-            tags.sortedBy { if (favorites.contains(it)) 0 else 1 }
-                .let { (if (isFolded) it.take(10) else it) }.forEach { tag ->
-                    TagChip(
-                        tag = tag,
-                        isFavorite = favorites.contains(tag),
-                        onFavoriteClick = onFavoriteToggle
-                    )
-                }
+    FlowRow(
+        Modifier.padding(0.dp, 16.dp),
+        mainAxisSpacing = 4.dp,
+        crossAxisSpacing = 4.dp
+    ) {
+        tags.sortedBy { if (favorites.contains(it)) 0 else 1 }
+            .let { (if (isFolded) it.take(10) else it) }.forEach { tag ->
+                TagChip(
+                    tag = tag,
+                    isFavorite = favorites.contains(tag),
+                    onFavoriteClick = onFavoriteToggle
+                )
+            }
 
-            if (isFolded && tags.size > 10)
-                Surface(
-                    modifier = Modifier.padding(2.dp),
-                    color = MaterialTheme.colors.background,
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = 2.dp,
-                    onClick = { isFolded = false }
-                ) {
-                    Text(
-                        "…",
-                        modifier = Modifier.padding(16.dp, 8.dp),
-                        color = MaterialTheme.colors.onBackground,
-                        style = MaterialTheme.typography.body2
-                    )
-                }
-        }
+        if (isFolded && tags.size > 10)
+            Surface(
+                modifier = Modifier.padding(2.dp),
+                color = MaterialTheme.colors.background,
+                shape = RoundedCornerShape(16.dp),
+                elevation = 2.dp,
+                onClick = { isFolded = false }
+            ) {
+                Text(
+                    "…",
+                    modifier = Modifier.padding(16.dp, 8.dp),
+                    color = MaterialTheme.colors.onBackground,
+                    style = MaterialTheme.typography.body2
+                )
+            }
     }
 }
 
@@ -273,7 +270,7 @@ fun TagChip(
 ) {
     val starIcon = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarOutline
 
-    TagChipLayout(
+    TagChip(
         tag,
         isFavorite,
         onClick = { onClick(tag) },
