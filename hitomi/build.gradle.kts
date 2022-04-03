@@ -15,7 +15,7 @@ object Constants {
     const val applicationIdSuffix = "hitomi"
     const val sources = "hitomi.la:.Hitomi"
     const val versionCode = 1
-    const val versionName = "0.0.1-alpha13"
+    const val versionName = "0.0.1-alpha14"
 }
 
 android {
