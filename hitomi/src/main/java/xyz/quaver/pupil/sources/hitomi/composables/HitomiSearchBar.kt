@@ -30,6 +30,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
@@ -38,12 +39,15 @@ import com.google.accompanist.insets.LocalWindowInsets
 import com.google.accompanist.insets.navigationBarsWithImePadding
 import com.google.accompanist.insets.rememberInsetsPaddingValues
 import com.google.accompanist.insets.statusBarsPadding
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.job
 import xyz.quaver.pupil.sources.R
 import xyz.quaver.pupil.sources.base.theme.Blue700
 import xyz.quaver.pupil.sources.base.theme.Orange500
 import xyz.quaver.pupil.sources.base.theme.Pink600
 import xyz.quaver.pupil.sources.base.util.withLocalResource
 import xyz.quaver.pupil.sources.hitomi.lib.SortOptions
+import java.lang.IllegalStateException
 
 enum class HitomiSearchBarState {
     NORMAL,
@@ -145,7 +149,9 @@ fun TagChipLayout(
         }
     }
 
-    val modifier = Modifier.padding(2.dp).height(32.dp)
+    val modifier = Modifier
+        .padding(2.dp)
+        .height(32.dp)
 
     if (onClick != null)
         Surface(
@@ -265,9 +271,7 @@ fun InputChip(
 @Composable
 private fun Normal(
     query: String,
-    sortOption: SortOptions,
-    onSortOptionChange: (SortOptions) -> Unit,
-    onStateChange: (HitomiSearchBarState) -> Unit
+    actions: @Composable RowScope.() -> Unit
 ) {
     val tags = query.split(' ')
     val scrollState = rememberScrollState()
@@ -293,94 +297,50 @@ private fun Normal(
                 }
             }
 
-            Row {
-                var expanded by remember { mutableStateOf(false) }
-
-                IconButton(onClick = { onStateChange(HitomiSearchBarState.SETTINGS) }) {
-                    withLocalResource {
-                        Image(
-                            painter = painterResource(id = R.mipmap.ic_launcher),
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-
-                IconButton(onClick = { expanded = true }) {
-                    Icon(Icons.Default.Sort, contentDescription = null)
-                }
-
-                val onClick: (SortOptions) -> Unit = {
-                    expanded = false
-                    onSortOptionChange(it)
-                }
-                DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
-                    @Composable
-                    fun SortOptionsMenuItem(text: String, currentSortOption: SortOptions, divider: Boolean = true) {
-                        DropdownMenuItem(onClick = { onClick(currentSortOption) }) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                Text(text)
-                                RadioButton(selected = sortOption == currentSortOption, onClick = { onClick(currentSortOption) })
-                            }
-                        }
-
-                        if (divider) Divider()
-                    }
-
-                    SortOptionsMenuItem("Date Added", SortOptions.DATE)
-                    SortOptionsMenuItem("Popular: Today", SortOptions.POPULAR_TODAY)
-                    SortOptionsMenuItem("Popular: Week", SortOptions.POPULAR_WEEK)
-                    SortOptionsMenuItem("Popular: Month", SortOptions.POPULAR_MONTH)
-                    SortOptionsMenuItem("Popular: Year", SortOptions.POPULAR_YEAR, divider = false)
-                }
-            }
+            Row(content = actions)
         }
     }
 }
 
 @Composable
-private fun Search(
+fun Search(
     query: String,
     onQueryChange: (String) -> Unit,
     focusRequester: FocusRequester
 ) {
     val tags = query.split(' ')
 
-    Column {
+    var textValue by remember { mutableStateOf(TextFieldValue()) }
+
+    Column(
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
         FlowRow(
             modifier = Modifier.padding(8.dp),
             mainAxisSpacing = 8.dp
         ) {
-            tags.dropLast(1).forEach { tag ->
-                TagChip(tag.replace('_', ' ')) {
-                    onQueryChange(tags.filter { it != tag }.joinToString(" "))
+            tags.forEach { tag ->
+                if (tag.isNotEmpty())
+                    TagChip(tag.replace('_', ' ')) {
+                        onQueryChange(tags.filter { it != tag }.joinToString(" "))
+                    }
+            }
+        }
+
+        TextField(
+            textValue,
+            onValueChange = { textValue = it },
+            modifier = Modifier.focusRequester(focusRequester).fillMaxWidth(),
+            placeholder = { Text("Search...") },
+            trailingIcon = {
+                IconButton(onClick = { textValue = TextFieldValue() }) {
+                    Icon(
+                        Icons.Default.Cancel,
+                        contentDescription = null
+                    )
                 }
             }
-
-            InputChip(
-                tag = tags.last().replace('_', ' '),
-                onTagChange = {
-                    onQueryChange(buildString {
-                        tags.dropLast(1).forEach {
-                            append(it)
-                            append(' ')
-                        }
-
-                        append(it.replace(' ', '_'))
-                    })
-                },
-                onEnter = {
-                    if (!query.endsWith(' ')) onQueryChange("$query ")
-                },
-                onRemove = {
-                    onQueryChange(query.dropLastWhile { it != ' ' }.dropLast(1))
-                },
-                focusRequester = focusRequester
-            )
-        }
+        )
     }
 }
 
@@ -389,16 +349,20 @@ private fun Search(
 internal fun HitomiSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    sortOption: SortOptions,
-    onSortOptionChange: (SortOptions) -> Unit,
     topOffset: Int,
     onTopOffsetChange: (Int) -> Unit,
+    state: HitomiSearchBarState,
+    onStateChange: (HitomiSearchBarState) -> Unit,
+    actions: @Composable RowScope.() -> Unit,
     content: @Composable () -> Unit
 ) {
-    var state by remember { mutableStateOf(HitomiSearchBarState.NORMAL) }
     val isFocused by derivedStateOf { state != HitomiSearchBarState.NORMAL }
 
     val focusRequester = remember { FocusRequester() }
+
+    val imePaddingValues = rememberInsetsPaddingValues(
+        LocalWindowInsets.current.ime
+    )
 
     LaunchedEffect(state) {
         if (isFocused && topOffset != 0) {
@@ -408,15 +372,19 @@ internal fun HitomiSearchBar(
             }
         }
 
-        if (state == HitomiSearchBarState.SEARCH) focusRequester.requestFocus()
+        if (state == HitomiSearchBarState.SEARCH)
+            while (true) {
+                try {
+                    focusRequester.requestFocus()
+                    break
+                } catch (e: IllegalStateException) {
+                    delay(100)
+                }
+            }
     }
 
-    val imePaddingValues = rememberInsetsPaddingValues(
-        LocalWindowInsets.current.ime
-    )
-
     BackHandler(isFocused) {
-        state = HitomiSearchBarState.NORMAL
+        onStateChange(HitomiSearchBarState.NORMAL)
     }
 
     BoxWithConstraints {
@@ -436,7 +404,7 @@ internal fun HitomiSearchBar(
         content()
         Scrim(
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.32f),
-            onDismiss = { state = HitomiSearchBarState.NORMAL },
+            onDismiss = { onStateChange(HitomiSearchBarState.NORMAL) },
             isFocused
         )
 
@@ -454,17 +422,16 @@ internal fun HitomiSearchBar(
                     interactionSource = interactionSource,
                     indication = null
                 ) {
-                    state =
+                    onStateChange(
                         if (isFocused) HitomiSearchBarState.NORMAL else HitomiSearchBarState.SEARCH
+                    )
                 },
             elevation = if (isFocused) 16.dp else 8.dp
         ) {
             when (state) {
                 HitomiSearchBarState.NORMAL -> Normal(
                     query,
-                    sortOption,
-                    onSortOptionChange,
-                    onStateChange = { state = it }
+                    actions
                 )
                 HitomiSearchBarState.SEARCH -> Search(
                     query,

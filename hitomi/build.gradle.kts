@@ -159,6 +159,8 @@ dependencies {
     androidTestImplementation(AndroidTest.RULES)
     androidTestImplementation(AndroidTest.RUNNER)
     androidTestImplementation(AndroidTest.ESPRESSO)
+    androidTestImplementation(JetpackCompose.UI_TEST)
+    debugImplementation(JetpackCompose.UI_TEST_MANIFEST)
 }
 
 protobuf {

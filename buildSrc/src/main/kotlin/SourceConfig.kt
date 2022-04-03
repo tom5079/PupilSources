@@ -29,6 +29,9 @@ object JetpackCompose {
     const val RUNTIME_LIVEDATA = "androidx.compose.runtime:runtime-livedata:${Versions.JETPACK_COMPOSE}"
     const val UI_UTIL = "androidx.compose.ui:ui-util:${Versions.JETPACK_COMPOSE}"
     const val ANIMATION = "androidx.compose.animation:animation:${Versions.JETPACK_COMPOSE}"
+
+    const val UI_TEST = "androidx.compose.ui:ui-test-junit4:${Versions.JETPACK_COMPOSE}"
+    const val UI_TEST_MANIFEST = "androidx.compose.ui:ui-test-manifest:${Versions.JETPACK_COMPOSE}"
 }
 
 object Accompanist {

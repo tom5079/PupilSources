@@ -1,5 +1,6 @@
 package xyz.quaver.pupil.sources.hitomi.composables
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,6 +9,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +34,7 @@ import xyz.quaver.pupil.sources.hitomi.HitomiSearchResultViewModel
 import java.util.*
 import com.google.accompanist.insets.ui.Scaffold
 import xyz.quaver.pupil.sources.base.composables.*
+import xyz.quaver.pupil.sources.hitomi.lib.SortOptions
 import kotlin.math.roundToInt
 
 @Composable
@@ -49,14 +52,60 @@ fun SearchLayout(
     val searchBarDefaultOffset = statusBarsPaddingValues.calculateTopPadding() + 64.dp
     val searchBarDefaultOffsetPx = LocalDensity.current.run { searchBarDefaultOffset.roundToPx() }
 
+    var searchBarState by remember { mutableStateOf(HitomiSearchBarState.NORMAL) }
+
     HitomiSearchBar(
         query = model.query,
         onQueryChange = { model.query = it },
-        sortOption = model.sortOption,
-        onSortOptionChange = { model.sortOption = it },
         topOffset = model.searchBarOffset,
         onTopOffsetChange = {
             model.searchBarOffset = it
+        },
+        state = searchBarState,
+        onStateChange = { searchBarState = it },
+        actions = {
+            var expanded by remember { mutableStateOf(false) }
+
+            IconButton(onClick = { searchBarState = HitomiSearchBarState.SETTINGS }) {
+                withLocalResource {
+                    Image(
+                        painter = painterResource(id = R.mipmap.ic_launcher),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            IconButton(onClick = { expanded = true }) {
+                Icon(Icons.Default.Sort, contentDescription = null)
+            }
+
+            val onClick: (SortOptions) -> Unit = {
+                expanded = false
+                model.sortOption = it
+            }
+            DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+                @Composable
+                fun SortOptionsMenuItem(text: String, currentSortOption: SortOptions, divider: Boolean = true) {
+                    DropdownMenuItem(onClick = { onClick(currentSortOption) }) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(text)
+                            RadioButton(selected = model.sortOption == currentSortOption, onClick = { onClick(currentSortOption) })
+                        }
+                    }
+
+                    if (divider) Divider()
+                }
+
+                SortOptionsMenuItem("Date Added", SortOptions.DATE)
+                SortOptionsMenuItem("Popular: Today", SortOptions.POPULAR_TODAY)
+                SortOptionsMenuItem("Popular: Week", SortOptions.POPULAR_WEEK)
+                SortOptionsMenuItem("Popular: Month", SortOptions.POPULAR_MONTH)
+                SortOptionsMenuItem("Popular: Year", SortOptions.POPULAR_YEAR, divider = false)
+            }
         }
     ) {
         Scaffold(
