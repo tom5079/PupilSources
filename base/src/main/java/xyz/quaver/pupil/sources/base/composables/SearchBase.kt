@@ -57,7 +57,7 @@ open class SearchBaseViewModel<T> : ViewModel() {
     var maxPage by mutableStateOf(0)
 
     val prevPageAvailable by derivedStateOf { currentPage > 1 }
-    val nextPageAvailable by derivedStateOf { currentPage <= maxPage }
+    val nextPageAvailable by derivedStateOf { currentPage < maxPage }
 
     var query by mutableStateOf("")
 

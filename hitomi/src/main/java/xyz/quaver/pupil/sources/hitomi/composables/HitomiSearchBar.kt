@@ -277,7 +277,7 @@ private fun Normal(
                     Text("Search...", style = MaterialTheme.typography.subtitle1)
 
                 tags.forEach { tag ->
-                    if (tag.isNotEmpty()) TagChip(tag.replace('_', ' '))
+                    if (tag.isNotEmpty()) TagChip(tag.replace('_', ' '), enabled = false)
                 }
             }
 
