@@ -336,7 +336,16 @@ fun Search(
                 .padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Query")
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Query")
+                TextButton(onClick = { onTagsChange(emptyList()) }) {
+                    Text("Clear")
+                }
+            }
 
             if (tags.isNotEmpty()) {
                 FlowRow(
