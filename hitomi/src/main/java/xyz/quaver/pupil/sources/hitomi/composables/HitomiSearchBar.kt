@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -41,8 +42,10 @@ import com.google.accompanist.insets.navigationBarsWithImePadding
 import com.google.accompanist.insets.rememberInsetsPaddingValues
 import com.google.accompanist.insets.statusBarsPadding
 import io.ktor.client.*
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import org.kodein.di.compose.rememberInstance
 import xyz.quaver.pupil.sources.base.composables.ErrorMessage
 import xyz.quaver.pupil.sources.base.theme.Blue700
@@ -300,11 +303,14 @@ fun Search(
     onTagsChange: (List<String>) -> Unit,
     focusRequester: FocusRequester
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     var textValue by remember { mutableStateOf(TextFieldValue()) }
 
     val database: HitomiDatabase by rememberInstance()
     val favoritesDao = database.favoritesDao()
     val favoriteTags by favoritesDao.getTags().collectAsState(emptyList())
+    val favoriteTagsSet by derivedStateOf { favoriteTags.toSet() }
 
     val client: HttpClient by rememberInstance()
     val suggestions by produceState<List<String>>(emptyList(), textValue, favoriteTags) {
@@ -368,8 +374,27 @@ fun Search(
                 Text("Suggestions")
                 TagGroup {
                     suggestions.forEach { suggestion ->
+                        val isFavorite = favoriteTagsSet.contains(suggestion)
+
                         TagChip(
                             suggestion,
+                            isFavorite = isFavorite,
+                            rightIcon = { _, _ ->
+                                Icon(
+                                    if (isFavorite) Icons.Default.Star else Icons.Default.StarOutline,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            coroutineScope.launch {
+                                                if (isFavorite) favoritesDao.delete(suggestion)
+                                                else favoritesDao.insertTag(suggestion)
+                                            }
+                                        }
+                                )
+                            },
                             onClick = {
                                 textValue = TextFieldValue()
                                 onTagsChange(tags+it)
