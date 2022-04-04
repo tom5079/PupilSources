@@ -145,15 +145,13 @@ fun SearchLayout(
                                     available: Offset,
                                     source: NestedScrollSource
                                 ): Offset {
-                                    if (source == NestedScrollSource.Drag) {
-                                        model.searchBarOffset =
-                                            (model.searchBarOffset + available.y.roundToInt()).coerceIn(
-                                                -searchBarDefaultOffsetPx,
-                                                0
-                                            )
+                                    model.searchBarOffset =
+                                        (model.searchBarOffset + available.y.roundToInt()).coerceIn(
+                                            -searchBarDefaultOffsetPx,
+                                            0
+                                        )
 
-                                        model.isFabVisible = available.y > 0f
-                                    }
+                                    model.isFabVisible = available.y > 0f
 
                                     return Offset.Zero
                                 }
