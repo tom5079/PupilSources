@@ -16,9 +16,15 @@
 
 package xyz.quaver.pupil.sources.hitomi.lib
 
+import android.util.Log
 import io.ktor.client.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.consume
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -31,6 +37,7 @@ enum class SortOptions(val area: String?, val tag: String) {
     POPULAR_YEAR("popular", "year")
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 suspend fun HttpClient.doSearch(query: String, sortOption: SortOptions = SortOptions.DATE) : IntBuffer = coroutineScope {
     val terms = query
         .trim()
@@ -41,62 +48,75 @@ suspend fun HttpClient.doSearch(query: String, sortOption: SortOptions = SortOpt
             it.replace('_', ' ')
         }
 
-    val positiveTerms = LinkedList<String>()
-    val negativeTerms = LinkedList<String>()
+    val positiveTerms = mutableListOf<String>()
+    val negativeTerms = mutableListOf<String>()
 
     for (term in terms) {
-        if (term.matches(Regex("^-.+")))
-            negativeTerms.push(term.replace(Regex("^-"), ""))
+        if (term.startsWith('-'))
+            negativeTerms.add(term.drop(1))
         else if (term.isNotBlank())
-            positiveTerms.push(term)
+            positiveTerms.add(term)
     }
 
-    val positiveResults = positiveTerms.map {
-        async {
-            runCatching {
-                getGalleryIDsForQuery(it)
-            }.getOrElse { IntBuffer.allocate(0) }
+    val positiveResultsChannel = produce {
+        positiveTerms.forEach { term ->
+            launch {
+                runCatching {
+                    getGalleryIDsForQuery(term)
+                }.onSuccess {
+                    send(it)
+                }.onFailure {
+                    close(it)
+                }
+            }
         }
     }
 
-    val negativeResults = negativeTerms.map {
-        async {
-            runCatching {
-                getGalleryIDsForQuery(it)
-            }.getOrElse { IntBuffer.allocate(0) }
+    val negativeResultsChannel = produce {
+        negativeTerms.forEach {
+            launch {
+                runCatching {
+                    getGalleryIDsForQuery(it)
+                }.onSuccess {
+                    send(it)
+                }.onFailure {
+                    close(it)
+                }
+            }
         }
     }
 
-    var set = when {
-        sortOption != SortOptions.DATE -> getGalleryIDsFromNozomi(sortOption.area, sortOption.tag, "all")
-        positiveTerms.isEmpty() -> getGalleryIDsFromNozomi(null, "index", "all")
-        else -> positiveResults.first().await()
-    }.let { buffer ->
-        mutableSetOf<Int>().apply {
+    var set = mutableSetOf<Int>().apply {
+        when {
+            sortOption != SortOptions.DATE ->
+                getGalleryIDsFromNozomi(sortOption.area, sortOption.tag, "all")
+            positiveTerms.isEmpty() ->
+                getGalleryIDsFromNozomi(null, "index", "all")
+            else -> null
+        }?.let { buffer ->
             repeat(buffer.limit()) { i ->
                 add(buffer[i])
             }
         }
     }
 
-    positiveResults.drop(if (sortOption == SortOptions.DATE) 1 else 0).forEach {
-        val result = it.await()
+    repeat(positiveTerms.size) {
+        val result = positiveResultsChannel.receive()
 
-        val tmp = mutableSetOf<Int>()
-
-        repeat(result.limit()) { i ->
-            if (set.contains(i)) tmp.add(result[i])
+        if (set.isEmpty()) {
+            repeat(result.limit()) { i -> set.add(result[i]) }
+            return@repeat
         }
 
-        set = tmp
+        set = mutableSetOf<Int>().apply {
+            repeat(result.limit()) { i -> result[i].let { if (set.contains(it)) add(it) } }
+        }
     }
 
-    negativeResults.forEach {
-        val result = it.await()
+    repeat(negativeTerms.size) {
+        val result = negativeResultsChannel.receive()
 
-        repeat(result.limit()) { i ->
-            set.remove(result[i])
-        }
+        repeat(result.limit()) { i -> set.remove(result[i]) }
     }
 
     ByteBuffer.allocateDirect(set.size*4).asIntBuffer().apply {
