@@ -156,8 +156,6 @@ dependencies {
     implementation(KtorClient.SERIALIZATION)
 
     implementation(Kodein.DI)
-    implementation(Kodein.DI_VIEWMODEL)
-    implementation(Kodein.DI_VIEWMODEL_SAVEDSTATE)
     implementation(Kodein.LOG)
 
     implementation(Misc.PROTOBUF)

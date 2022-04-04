@@ -57,8 +57,6 @@ object AndroidX {
 
 object Kodein {
     const val DI = "org.kodein.di:kodein-di-framework-compose:7.11.0"
-    const val DI_VIEWMODEL = "org.kodein.di:kodein-di-framework-android-x-viewmodel:7.11.0"
-    const val DI_VIEWMODEL_SAVEDSTATE = "org.kodein.di:kodein-di-framework-android-x-viewmodel-savedstate:7.11.0"
     const val LOG = "org.kodein.log:kodein-log:0.11.1"
 }
 
