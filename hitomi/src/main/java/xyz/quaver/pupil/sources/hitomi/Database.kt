@@ -23,10 +23,10 @@ interface FavoritesDao {
     @Query("SELECT item FROM favorite")
     fun getAll(): Flow<List<String>>
 
-    @Query("SELECT item FROM favorite WHERE type == 'GALLERY'")
+    @Query("SELECT item FROM favorite WHERE type == 'GALLERY' ORDER BY timestamp DESC")
     fun getGalleries(): Flow<List<String>>
 
-    @Query("SELECT item FROM favorite WHERE type == 'TAG'")
+    @Query("SELECT item FROM favorite WHERE type == 'TAG' ORDER BY timestamp DESC")
     fun getTags(): Flow<List<String>>
 
     @Query("SELECT EXISTS(SELECT * FROM favorite WHERE item = :item)")
@@ -54,7 +54,7 @@ val MIGRATION_1_2 = object: Migration(1, 2) {
             query("SELECT item, timestamp FROM Favorite").use { cursor ->
                 while (cursor.moveToNext()) {
                     val item = cursor.getString(0)
-                    val timestamp = cursor.getInt(1)
+                    val timestamp = cursor.getLong(1)
 
                     insert(
                         "new_Favorite",

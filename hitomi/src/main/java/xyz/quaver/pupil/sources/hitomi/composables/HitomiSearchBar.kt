@@ -42,11 +42,13 @@ import com.google.accompanist.insets.rememberInsetsPaddingValues
 import com.google.accompanist.insets.statusBarsPadding
 import io.ktor.client.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import org.kodein.di.compose.rememberInstance
 import xyz.quaver.pupil.sources.base.composables.ErrorMessage
 import xyz.quaver.pupil.sources.base.theme.Blue700
 import xyz.quaver.pupil.sources.base.theme.Orange500
 import xyz.quaver.pupil.sources.base.theme.Pink600
+import xyz.quaver.pupil.sources.hitomi.HitomiDatabase
 import xyz.quaver.pupil.sources.hitomi.lib.Suggestion
 import xyz.quaver.pupil.sources.hitomi.lib.getSuggestionsForQuery
 
@@ -300,16 +302,17 @@ fun Search(
 ) {
     var textValue by remember { mutableStateOf(TextFieldValue()) }
 
-    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val database: HitomiDatabase by rememberInstance()
+    val favoritesDao = database.favoritesDao()
+    val favoriteTags by favoritesDao.getTags().collectAsState(emptyList())
 
     val client: HttpClient by rememberInstance()
-    val suggestions by produceState<List<Suggestion>>(emptyList(), textValue) {
+    val suggestions by produceState<List<String>>(emptyList(), textValue, favoriteTags) {
         textValue.text.let { query ->
-            value =
-                if (query.isNotEmpty())
-                    client.getSuggestionsForQuery(query).also { bringIntoViewRequester.bringIntoView() }
-                else
-                    emptyList()
+            value = favoriteTags.filter { it.contains(query, true) }
+
+            if (query.isNotEmpty())
+                value = (value + client.getSuggestionsForQuery(query).map { "${it.n}:${it.s}" }).distinct()
         }
     }
 
@@ -363,10 +366,10 @@ fun Search(
             if (suggestions.isNotEmpty()) {
                 Divider()
                 Text("Suggestions")
-                TagGroup(Modifier.bringIntoViewRequester(bringIntoViewRequester)) {
+                TagGroup {
                     suggestions.forEach { suggestion ->
                         TagChip(
-                            "${suggestion.n}:${suggestion.s}",
+                            suggestion,
                             onClick = {
                                 textValue = TextFieldValue()
                                 onTagsChange(tags+it)
