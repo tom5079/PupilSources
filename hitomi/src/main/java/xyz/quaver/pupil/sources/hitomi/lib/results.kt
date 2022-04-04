@@ -67,35 +67,35 @@ suspend fun HttpClient.doSearch(query: String, sortOption: SortOptions = SortOpt
         }
     }
 
-    val set = buildSet {
-        when {
-            sortOption != SortOptions.DATE -> getGalleryIDsFromNozomi(sortOption.area, sortOption.tag, "all")
-            positiveTerms.isEmpty() -> getGalleryIDsFromNozomi(null, "index", "all")
-            else -> positiveResults.first().await()
-        }?.let { buffer ->
+    var set = when {
+        sortOption != SortOptions.DATE -> getGalleryIDsFromNozomi(sortOption.area, sortOption.tag, "all")
+        positiveTerms.isEmpty() -> getGalleryIDsFromNozomi(null, "index", "all")
+        else -> positiveResults.first().await()
+    }.let { buffer ->
+        mutableSetOf<Int>().apply {
             repeat(buffer.limit()) { i ->
                 add(buffer[i])
             }
         }
+    }
 
-        positiveResults.drop(if (sortOption == SortOptions.DATE) 1 else 0).forEach {
-            val result = it.await()
+    positiveResults.drop(if (sortOption == SortOptions.DATE) 1 else 0).forEach {
+        val result = it.await()
 
-            val tmp = buildSet {
-                repeat(result.limit()) { i ->
-                    add(result[i])
-                }
-            }
+        val tmp = mutableSetOf<Int>()
 
-            retainAll(tmp)
+        repeat(result.limit()) { i ->
+            if (set.contains(i)) tmp.add(result[i])
         }
 
-        negativeResults.forEach {
-            val result = it.await()
+        set = tmp
+    }
 
-            repeat(result.limit()) { i ->
-                remove(result[i])
-            }
+    negativeResults.forEach {
+        val result = it.await()
+
+        repeat(result.limit()) { i ->
+            set.remove(result[i])
         }
     }
 
