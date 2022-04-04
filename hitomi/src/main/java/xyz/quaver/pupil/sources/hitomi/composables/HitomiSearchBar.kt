@@ -7,6 +7,8 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -243,9 +245,12 @@ fun InputChip(
 }
 
 @Composable
-fun TagGroup(content: @Composable () -> Unit) {
+fun TagGroup(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
     FlowRow(
-        Modifier.padding(8.dp),
+        modifier.padding(8.dp),
         mainAxisSpacing = 4.dp,
         crossAxisSpacing = 4.dp,
         content = content
@@ -286,7 +291,7 @@ private fun Normal(
     }
 }
 
-@OptIn(ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun Search(
     tags: List<String>,
@@ -295,12 +300,19 @@ fun Search(
 ) {
     var textValue by remember { mutableStateOf(TextFieldValue()) }
 
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+
     val client: HttpClient by rememberInstance()
     val suggestions by produceState<List<Suggestion>>(emptyList(), textValue) {
         textValue.text.let { query ->
-            value = if (query.isNotEmpty()) client.getSuggestionsForQuery(query) else emptyList()
+            value =
+                if (query.isNotEmpty())
+                    client.getSuggestionsForQuery(query).also { bringIntoViewRequester.bringIntoView() }
+                else
+                    emptyList()
         }
     }
+
 
     Column(
         verticalArrangement = Arrangement.SpaceBetween
@@ -351,7 +363,7 @@ fun Search(
             if (suggestions.isNotEmpty()) {
                 Divider()
                 Text("Suggestions")
-                TagGroup {
+                TagGroup(Modifier.bringIntoViewRequester(bringIntoViewRequester)) {
                     suggestions.forEach { suggestion ->
                         TagChip(
                             "${suggestion.n}:${suggestion.s}",
