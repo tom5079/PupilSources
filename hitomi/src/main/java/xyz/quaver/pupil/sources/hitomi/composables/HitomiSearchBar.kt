@@ -33,6 +33,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
@@ -54,6 +55,7 @@ import xyz.quaver.pupil.sources.base.theme.Pink600
 import xyz.quaver.pupil.sources.hitomi.HitomiDatabase
 import xyz.quaver.pupil.sources.hitomi.lib.Suggestion
 import xyz.quaver.pupil.sources.hitomi.lib.getSuggestionsForQuery
+import java.util.*
 
 enum class HitomiSearchBarState {
     NORMAL,
@@ -517,7 +519,7 @@ internal fun HitomiSearchBar(
                 HitomiSearchBarState.SEARCH -> Search(
                     query.split(' ').filter { it.isNotBlank() }.map { it.replace('_', ' ') },
                     onTagsChange = { tags ->
-                        onQueryChange(tags.joinToString(" ") { it.replace(' ', '_') })
+                        onQueryChange(tags.distinctBy { it.lowercase(Locale.getDefault()) }.joinToString(" ") { it.replace(' ', '_') })
                     },
                     focusRequester
                 )
