@@ -81,9 +81,13 @@ suspend fun HttpClient.doSearch(query: String, sortOption: SortOptions = SortOpt
         positiveResults.drop(if (sortOption == SortOptions.DATE) 1 else 0).forEach {
             val result = it.await()
 
-            repeat(result.limit()) { i ->
-                remove(result[i])
+            val tmp = buildSet {
+                repeat(result.limit()) { i ->
+                    add(result[i])
+                }
             }
+
+            retainAll(tmp)
         }
 
         negativeResults.forEach {
