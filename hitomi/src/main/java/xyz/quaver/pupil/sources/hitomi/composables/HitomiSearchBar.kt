@@ -341,10 +341,7 @@ fun Search(
             }
 
             if (tags.isNotEmpty() || defaultTags.isNotEmpty()) {
-                FlowRow(
-                    modifier = Modifier.padding(8.dp),
-                    mainAxisSpacing = 8.dp
-                ) {
+                TagGroup {
                     tags.forEach { tag ->
                         TagChip(
                             tag,
