@@ -137,6 +137,7 @@ dependencies {
     kapt(AndroidX.ROOM_COMPILER)
     implementation(AndroidX.ROOM_KTX)
     implementation(AndroidX.DATASTORE)
+    implementation(AndroidX.LIFECYCLE_LIVEDATA_KTX)
 
     implementation(JetpackCompose.FOUNDATION)
     implementation(JetpackCompose.UI)

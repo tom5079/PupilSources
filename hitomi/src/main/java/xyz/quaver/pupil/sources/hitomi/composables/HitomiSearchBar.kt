@@ -7,8 +7,6 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -17,7 +15,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -33,7 +30,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
@@ -43,9 +39,7 @@ import com.google.accompanist.insets.navigationBarsWithImePadding
 import com.google.accompanist.insets.rememberInsetsPaddingValues
 import com.google.accompanist.insets.statusBarsPadding
 import io.ktor.client.*
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.kodein.di.compose.rememberInstance
 import xyz.quaver.pupil.sources.base.composables.ErrorMessage
@@ -53,9 +47,7 @@ import xyz.quaver.pupil.sources.base.theme.Blue700
 import xyz.quaver.pupil.sources.base.theme.Orange500
 import xyz.quaver.pupil.sources.base.theme.Pink600
 import xyz.quaver.pupil.sources.hitomi.HitomiDatabase
-import xyz.quaver.pupil.sources.hitomi.lib.Suggestion
 import xyz.quaver.pupil.sources.hitomi.lib.getSuggestionsForQuery
-import java.util.*
 
 enum class HitomiSearchBarState {
     NORMAL,
@@ -266,10 +258,9 @@ fun TagGroup(
 
 @Composable
 private fun Normal(
-    query: String,
+    query: List<String>,
     actions: @Composable RowScope.() -> Unit
 ) {
-    val tags = query.split(' ')
     val scrollState = rememberScrollState()
 
     Box {
@@ -288,8 +279,8 @@ private fun Normal(
                 if (query.isEmpty())
                     Text("Search...", style = MaterialTheme.typography.subtitle1)
 
-                tags.forEach { tag ->
-                    if (tag.isNotEmpty()) TagChip(tag.replace('_', ' '), enabled = false)
+                query.forEach { tag ->
+                    TagChip(tag.replace('_', ' '), enabled = false)
                 }
             }
 
@@ -303,6 +294,8 @@ private fun Normal(
 fun Search(
     tags: List<String>,
     onTagsChange: (List<String>) -> Unit,
+    defaultTags: List<String>,
+    onDefaultTagsChange: (List<String>) -> Unit,
     focusRequester: FocusRequester
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -310,7 +303,7 @@ fun Search(
     var textValue by remember { mutableStateOf(TextFieldValue()) }
 
     val database: HitomiDatabase by rememberInstance()
-    val favoritesDao = database.favoritesDao()
+    val favoritesDao = remember { database.favoritesDao() }
     val favoriteTags by favoritesDao.getTags().collectAsState(emptyList())
     val favoriteTagsSet by derivedStateOf { favoriteTags.toSet() }
 
@@ -347,12 +340,46 @@ fun Search(
                 }
             }
 
-            if (tags.isNotEmpty()) {
+            if (tags.isNotEmpty() || defaultTags.isNotEmpty()) {
                 FlowRow(
                     modifier = Modifier.padding(8.dp),
                     mainAxisSpacing = 8.dp
                 ) {
                     tags.forEach { tag ->
+                        TagChip(
+                            tag,
+                            rightIcon = { _, _ ->
+                                Row(
+                                    Modifier.padding(8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Cancel,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clip(CircleShape)
+                                            .clickable {
+                                                onTagsChange(tags.filter { it != tag })
+                                            }
+                                    )
+
+                                    Icon(
+                                        Icons.Default.PushPin,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clip(CircleShape)
+                                            .clickable {
+                                                onDefaultTagsChange(defaultTags + tag)
+                                            }
+                                    )
+                                }
+                            }
+                        )
+                    }
+
+                    defaultTags.forEach { tag ->
                         TagChip(
                             tag,
                             rightIcon = { _, _ ->
@@ -364,7 +391,7 @@ fun Search(
                                         .size(16.dp)
                                         .clip(CircleShape)
                                         .clickable {
-                                            onTagsChange(tags.filter { it != tag })
+                                            onDefaultTagsChange(defaultTags.filterNot { it == tag })
                                         }
                                 )
                             }
@@ -414,6 +441,8 @@ fun Search(
                     }
                 }
             }
+
+
         }
 
         TextField(
@@ -438,8 +467,10 @@ fun Search(
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 internal fun HitomiSearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
+    tags: List<String>,
+    onTagsChange: (List<String>) -> Unit,
+    defaultTags: List<String>,
+    onDefaultTagsChange: (List<String>) -> Unit,
     topOffset: Int,
     onTopOffsetChange: (Int) -> Unit,
     state: HitomiSearchBarState,
@@ -522,14 +553,14 @@ internal fun HitomiSearchBar(
         ) {
             when (state) {
                 HitomiSearchBarState.NORMAL -> Normal(
-                    query,
+                    tags,
                     actions
                 )
                 HitomiSearchBarState.SEARCH -> Search(
-                    query.split(' ').filter { it.isNotBlank() }.map { it.replace('_', ' ') },
-                    onTagsChange = { tags ->
-                        onQueryChange(tags.distinctBy { it.lowercase(Locale.getDefault()) }.joinToString(" ") { it.replace(' ', '_') })
-                    },
+                    tags,
+                    onTagsChange,
+                    defaultTags,
+                    onDefaultTagsChange,
                     focusRequester
                 )
                 HitomiSearchBarState.SETTINGS -> {

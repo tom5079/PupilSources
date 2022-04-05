@@ -18,25 +18,57 @@
 
 package xyz.quaver.pupil.sources.hitomi
 
+import android.util.Log
 import android.util.LruCache
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import androidx.datastore.core.DataStore
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.ktor.client.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import org.kodein.di.DI
 import org.kodein.di.DIAware
+import org.kodein.di.compose.instance
 import org.kodein.di.instance
 import xyz.quaver.pupil.sources.base.composables.SearchBaseViewModel
+import xyz.quaver.pupil.sources.hitomi.composables.joinTags
 import xyz.quaver.pupil.sources.hitomi.lib.*
+import xyz.quaver.pupil.sources.hitomi.proto.HitomiSettings
 import java.nio.IntBuffer
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
-class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<GalleryInfo>(), DIAware {
+class HitomiSearchResultViewModel(override val di: DI): ViewModel(), DIAware {
+    val searchResults = mutableStateListOf<GalleryInfo>()
+
+    var sortModeIndex by mutableStateOf(0)
+        private set
+
+    var currentPage by mutableStateOf(1)
+
+    var totalItems by mutableStateOf(0)
+
+    var maxPage by mutableStateOf(0)
+
+    val prevPageAvailable by derivedStateOf { currentPage > 1 }
+    val nextPageAvailable by derivedStateOf { currentPage < maxPage }
+
+    var query by mutableStateOf<List<String>>(emptyList())
+
+    var loading by mutableStateOf(false)
+    var exception by mutableStateOf<Throwable?>(null)
+
+    //region UI
+    var isFabVisible by  mutableStateOf(true)
+    var searchBarOffset by mutableStateOf(0)
+    //endregion
+
     private val client: HttpClient by instance()
+
+    private val settingsDataStore: DataStore<HitomiSettings> by instance()
 
     private var cachedQuery: String? = null
     private var cachedSortByPopularity: SortOptions? = null
@@ -59,6 +91,16 @@ class HitomiSearchResultViewModel(override val di: DI): SearchBaseViewModel<Gall
             exception = null
 
             searchJob = launch {
+                val query = buildString {
+                    append(query.joinTags())
+                    val defaultQuery = settingsDataStore.data.first().defaultQuery
+
+                    if (defaultQuery.isNotEmpty()) {
+                        if (this.isNotEmpty()) append(' ')
+                        append(defaultQuery)
+                    }
+                }
+
                 if (cachedQuery != query || cachedSortByPopularity != sortOption || cache == null) {
                     cachedQuery = null
                     cache = null

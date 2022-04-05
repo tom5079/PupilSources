@@ -53,6 +53,7 @@ object AndroidX {
     const val ROOM_TESTING = "androidx.room:room-testing:2.4.2"
     const val DATASTORE = "androidx.datastore:datastore:1.0.0"
     const val DATASTORE_PREFERENCES = "androidx.datastore:datastore-preferences:1.0.0"
+    const val LIFECYCLE_LIVEDATA_KTX = "androidx.lifecycle:lifecycle-livedata-ktx:2.4.1"
 }
 
 object Kodein {

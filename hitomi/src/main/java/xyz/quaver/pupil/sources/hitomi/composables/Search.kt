@@ -31,14 +31,23 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.kodein.di.compose.rememberInstance
 import org.kodein.di.compose.rememberViewModel
-import xyz.quaver.pupil.proto.Settings
 import xyz.quaver.pupil.sources.R
 import xyz.quaver.pupil.sources.base.composables.*
 import xyz.quaver.pupil.sources.base.util.withLocalResource
 import xyz.quaver.pupil.sources.hitomi.HitomiDatabase
 import xyz.quaver.pupil.sources.hitomi.HitomiSearchResultViewModel
 import xyz.quaver.pupil.sources.hitomi.lib.SortOptions
+import xyz.quaver.pupil.sources.hitomi.proto.HitomiSettings
 import kotlin.math.roundToInt
+
+internal fun String.splitTags() =
+    this.split(' ').map { it.replace('_', ' ') }.filter { it.isNotEmpty() }
+
+internal fun List<String>.joinTags() =
+    this.joinToString(" ") { it.replace(' ', '_') }
+
+internal fun List<String>.distinctTags() =
+    this.map { it.lowercase() }.distinct()
 
 @Composable
 fun SearchLayout(
@@ -46,6 +55,8 @@ fun SearchLayout(
     fabSubMenu: List<SubFabItem>,
     content: @Composable BoxScope.(contentPadding: PaddingValues) -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     var isFabExpanded by remember { mutableStateOf(FloatingActionButtonState.COLLAPSED) }
 
     val statusBarsPaddingValues = rememberInsetsPaddingValues(insets = LocalWindowInsets.current.statusBars)
@@ -55,9 +66,30 @@ fun SearchLayout(
 
     var searchBarState by remember { mutableStateOf(HitomiSearchBarState.NORMAL) }
 
+    val settings: DataStore<HitomiSettings> by rememberInstance()
+
+    val defaultQuery by remember {
+        settings.data.map { it.defaultQuery.splitTags() }
+    }.collectAsState(emptyList())
+
     HitomiSearchBar(
-        query = model.query,
-        onQueryChange = { model.query = it },
+        model.query,
+        onTagsChange = {
+            model.query = it.distinctTags().filter { it !in defaultQuery }
+        },
+        defaultQuery,
+        onDefaultTagsChange = { newDefaultTags ->
+            val distinctTags = newDefaultTags.distinctTags()
+            model.query = model.query.filter { it !in distinctTags }
+
+            coroutineScope.launch {
+                settings.updateData {
+                    it.toBuilder().setDefaultQuery(
+                        distinctTags.joinTags()
+                    ).build()
+                }
+            }
+        },
         topOffset = model.searchBarOffset,
         onTopOffsetChange = {
             model.searchBarOffset = it
@@ -205,7 +237,9 @@ fun SearchLayout(
                                         CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.medium) {
                                             Text(
                                                 exception.stackTraceToString(),
-                                                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .verticalScroll(rememberScrollState())
                                             )
                                         }
 
@@ -242,22 +276,12 @@ fun Search(navigateToReader: (itemID: String) -> Unit) {
     val favoritesDao = remember { database.favoritesDao() }
     val coroutineScope = rememberCoroutineScope()
 
-    val settingsDataStore: DataStore<Settings> by rememberInstance()
-
     val favoritesFlow = favoritesDao.getAll()
 
     val favorites by produceState<Set<String>>(emptySet()) {
         favoritesFlow
             .map { it.toSet() }
             .collect { value = it }
-    }
-
-    LaunchedEffect(Unit) {
-        settingsDataStore.updateData {
-            it.toBuilder()
-                .setRecentSource("hitomi.la")
-                .build()
-        }
     }
 
     LaunchedEffect(model.currentPage, model.sortOption) {
