@@ -1,7 +1,6 @@
 package xyz.quaver.pupil.sources.hitomi
 
 import android.app.Application
-import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.Composable
@@ -12,7 +11,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.room.Room
 import io.ktor.client.*
-import io.ktor.client.features.*
+import io.ktor.client.plugins.*
+import io.ktor.http.*
 import org.kodein.di.*
 import org.kodein.di.android.closestDI
 import org.kodein.di.android.subDI

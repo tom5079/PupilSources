@@ -11,7 +11,7 @@ object Versions {
     const val JETPACK_COMPOSE = "1.1.1"
     const val ACCOMPANIST = "0.23.1"
 
-    const val KTOR_CLIENT = "1.6.8"
+    const val KTOR_CLIENT = "2.0.0"
 }
 
 object Kotlin {

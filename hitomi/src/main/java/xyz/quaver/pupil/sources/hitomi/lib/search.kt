@@ -67,7 +67,7 @@ fun sanitize(input: String) : String {
 }
 
 suspend fun HttpClient.getIndexVersion(name: String): String =
-        get("$protocol//$domain/$name/version?_=${System.currentTimeMillis()}")
+        get("$protocol//$domain/$name/version?_=${System.currentTimeMillis()}").bodyAsText()
 
 //search.js
 @OptIn(ExperimentalUnsignedTypes::class)
@@ -181,14 +181,14 @@ suspend fun HttpClient.getGalleryIDsFromNozomi(area: String?, tag: String, langu
 
     return withContext(Dispatchers.IO) {
         val contentLength = async {
-            head<HttpResponse>(nozomiAddress) {
+            head(nozomiAddress) {
                 header("Accept-Encoding", "identity")
             }.headers[HttpHeaders.ContentLength]!!.toInt()
         }
 
-        get<HttpStatement>(nozomiAddress).execute { response ->
+        prepareGet(nozomiAddress).execute { response ->
             ByteBuffer.allocateDirect(contentLength.await()).apply {
-                val channel: ByteReadChannel = response.receive()
+                val channel = response.bodyAsChannel()
 
                 val bytesRead = channel.readFully(this)
 
@@ -226,11 +226,11 @@ suspend fun HttpClient.getNodeAtAddress(field: String, address: Long) : Node {
 }
 
 suspend fun HttpClient.getURLAtRange(url: String, range: LongRange) : ByteBuffer = withContext(Dispatchers.IO) {
-    get<HttpStatement>(url) {
+    prepareGet(url) {
         header("Range", "bytes=${range.first}-${range.last}")
     }.execute { response ->
         ByteBuffer.allocateDirect((range.last-range.first+1).toInt()).apply {
-            val channel: ByteReadChannel = response.receive()
+            val channel = response.bodyAsChannel()
 
             val bytesRead = channel.readFully(this)
 

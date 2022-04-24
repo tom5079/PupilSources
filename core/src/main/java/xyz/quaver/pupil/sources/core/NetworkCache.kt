@@ -121,9 +121,9 @@ class NetworkCache(context: Context) {
                         cacheDir.mkdirs()
                         file.createNewFile()
 
-                        request<HttpStatement>(request).execute { httpResponse ->
+                        prepareRequest(request).execute { httpResponse ->
                             if (!httpResponse.status.isSuccess()) throw IOException("${request.url} failed with code ${httpResponse.status.value}")
-                            val responseChannel: ByteReadChannel = httpResponse.receive()
+                            val responseChannel = httpResponse.bodyAsChannel()
                             val contentLength = httpResponse.contentLength() ?: -1
                             var readBytes = 0f
 

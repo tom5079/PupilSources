@@ -19,6 +19,7 @@ package xyz.quaver.pupil.sources.hitomi.lib
 import android.util.Log
 import io.ktor.client.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -111,7 +112,7 @@ val json = Json {
 @Suppress("EXPERIMENTAL_API_USAGE")
 suspend fun HttpClient.getGalleryInfo(galleryID: Int) = withContext(Dispatchers.IO) {
     json.decodeFromString<GalleryInfo>(
-        this@getGalleryInfo.get<String>("$protocol//$domain/galleries/$galleryID.js")
+        this@getGalleryInfo.get("$protocol//$domain/galleries/$galleryID.js").bodyAsText()
             .replace("var galleryinfo = ", "")
     )
 }
@@ -136,7 +137,7 @@ object gg {
     private suspend fun refresh(client: HttpClient) = withContext(Dispatchers.IO) {
         mutex.withLock {
             if (lastRetrieval == null || (lastRetrieval!! + 1.minutes) < now()) {
-                val ggjs: String = client.get("https://ltn.hitomi.la/gg.js")
+                val ggjs = client.get("https://ltn.hitomi.la/gg.js").bodyAsText()
 
                 mDefault = Regex("var o = (\\d)").find(ggjs)!!.groupValues[1].toInt()
                 val o = Regex("o = (\\d); break;").find(ggjs)!!.groupValues[1].toInt()
