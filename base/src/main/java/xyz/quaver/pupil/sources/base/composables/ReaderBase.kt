@@ -186,6 +186,8 @@ open class ReaderBaseViewModel(override val di: DI) : ViewModel(), DIAware {
 
     var imageCount by mutableStateOf(0)
 
+    open var currentIndex by mutableStateOf(0)
+
     val imageList = mutableStateListOf<Uri?>()
     val progressList = mutableStateListOf<Float>()
 

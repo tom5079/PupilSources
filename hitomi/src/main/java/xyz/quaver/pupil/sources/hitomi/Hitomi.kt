@@ -11,11 +11,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.room.Room
 import io.ktor.client.*
+import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
-import io.ktor.http.*
-import org.kodein.di.*
+import okhttp3.Dispatcher
 import org.kodein.di.android.closestDI
 import org.kodein.di.android.subDI
+import org.kodein.di.bindInstance
+import org.kodein.di.bindProvider
+import org.kodein.di.bindSingleton
 import org.kodein.di.compose.withDI
 import xyz.quaver.pupil.sources.base.util.LocalResourceContext
 import xyz.quaver.pupil.sources.core.Source
@@ -27,18 +30,15 @@ import xyz.quaver.pupil.sources.hitomi.composables.Search
 class Hitomi(app: Application): Source() {
     private val resourceContext = app.createPackageContext(packageName, 0)
 
-    override val di by subDI(closestDI(app)) {
+    override val di by subDI(closestDI(app), allowSilentOverride = true) {
         bindSingleton {
             Room.databaseBuilder(app, HitomiDatabase::class.java, packageName)
                 .addMigrations(MIGRATION_1_2)
                 .build()
         }
 
-        bindSingleton(overrides = true) {
-            val parentDI by closestDI(app)
-            val client: HttpClient = parentDI.direct.instance()
-
-            HttpClient(client.engine) {
+        bindSingleton {
+            HttpClient(OkHttp) {
                 install(HitomiPlugin)
                 BrowserUserAgent()
             }

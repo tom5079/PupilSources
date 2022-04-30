@@ -1,39 +1,31 @@
 package xyz.quaver.pupil.sources.hitomi.composables
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.*
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.insets.LocalWindowInsets
 import com.google.accompanist.insets.rememberInsetsPaddingValues
 import com.google.accompanist.insets.ui.Scaffold
 import com.google.accompanist.insets.ui.TopAppBar
 import io.ktor.client.*
-import io.ktor.client.request.*
-import io.ktor.http.*
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.withLock
 import org.kodein.di.DI
 import org.kodein.di.compose.rememberInstance
 import org.kodein.di.compose.rememberViewModel
@@ -44,25 +36,38 @@ import xyz.quaver.pupil.sources.base.composables.ReaderBaseViewModel
 import xyz.quaver.pupil.sources.base.theme.Orange500
 import xyz.quaver.pupil.sources.base.util.withLocalResource
 import xyz.quaver.pupil.sources.hitomi.HitomiDatabase
+import xyz.quaver.pupil.sources.hitomi.HitomiPlugin
 import xyz.quaver.pupil.sources.hitomi.lib.GalleryInfo
 import xyz.quaver.pupil.sources.hitomi.lib.getGalleryInfo
 import xyz.quaver.pupil.sources.hitomi.lib.imageUrlFromImage
 
 class HitomiReaderViewModel(override val di: DI): ReaderBaseViewModel(di) {
-
     private val client: HttpClient by instance()
+
+    override var currentIndex: Int
+        get() = super.currentIndex
+        set(value) {
+            super.currentIndex = value
+
+            HitomiPlugin.setViewerPosition(value)
+        }
 
     suspend fun load(galleryInfo: GalleryInfo) {
         runCatching {
-            load(
-                galleryInfo.files.map {
-                    client.imageUrlFromImage(it)
-                        .first { it.endsWith("webp") }
-                }
-            )
+            val images = galleryInfo.files.map { galleryFiles ->
+                client.imageUrlFromImage(galleryFiles).first { it.endsWith("webp") }
+            }
+
+            HitomiPlugin.setViewerImages(images)
+            load(images)
         }.onFailure {
             error = true
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        HitomiPlugin.setViewerImages(null)
     }
 }
 
@@ -72,6 +77,8 @@ class HitomiReaderViewModel(override val di: DI): ReaderBaseViewModel(di) {
 @Composable
 fun Reader(itemID: String) {
     val model: HitomiReaderViewModel by rememberViewModel()
+
+    val listState = rememberLazyListState()
 
     val client: HttpClient by rememberInstance()
 
@@ -91,6 +98,10 @@ fun Reader(itemID: String) {
         }.onFailure {
             model.error = true
         }
+    }
+
+    LaunchedEffect(listState.firstVisibleItemIndex) {
+        model.currentIndex = listState.firstVisibleItemIndex
     }
 
     BackHandler(model.fullscreen) {
@@ -146,7 +157,8 @@ fun Reader(itemID: String) {
     ) { contentPadding ->
         ReaderBase(
             Modifier.padding(contentPadding),
-            model
+            model,
+            listState
         )
     }
 }
