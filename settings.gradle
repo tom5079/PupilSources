@@ -11,3 +11,4 @@ rootProject.name = "PupilSources"
 include ':base'
 include ':hitomi'
 include ':core'
+include ':manatoki'
