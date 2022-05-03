@@ -165,6 +165,8 @@ dependencies {
     implementation(Misc.JSOUP)
 
     testImplementation(Test.JUNIT)
+    testImplementation(Kotlin.COROUTINE_TEST)
+    testImplementation(KtorClient.TEST)
     androidTestImplementation(AndroidTest.JUNIT)
     androidTestImplementation(AndroidTest.RULES)
     androidTestImplementation(AndroidTest.RUNNER)

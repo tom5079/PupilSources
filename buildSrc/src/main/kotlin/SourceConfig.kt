@@ -7,6 +7,7 @@ object AndroidConfig {
 
 object Versions {
     const val KOTLIN = "1.6.10"
+    const val COROUTINE = "1.6.0"
 
     const val JETPACK_COMPOSE = "1.1.1"
     const val ACCOMPANIST = "0.23.1"
@@ -17,7 +18,8 @@ object Versions {
 object Kotlin {
     const val STDLIB = "org.jetbrains.kotlin:kotlin-stdlib:${Versions.KOTLIN}"
     const val SERIALIZATION = "org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2"
-    const val COROUTINE = "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.0"
+    const val COROUTINE = "org.jetbrains.kotlinx:kotlinx-coroutines-android:${Versions.COROUTINE}"
+    const val COROUTINE_TEST = "org.jetbrains.kotlinx:kotlinx-coroutines-test:${Versions.COROUTINE}"
 }
 
 object JetpackCompose {
@@ -65,6 +67,8 @@ object KtorClient {
     const val CORE = "io.ktor:ktor-client-core:${Versions.KTOR_CLIENT}"
     const val OKHTTP = "io.ktor:ktor-client-okhttp:${Versions.KTOR_CLIENT}"
     const val SERIALIZATION = "io.ktor:ktor-client-serialization:${Versions.KTOR_CLIENT}"
+
+    const val TEST = "io.ktor:ktor-client-mock:${Versions.KTOR_CLIENT}"
 }
 
 object Firebase {
