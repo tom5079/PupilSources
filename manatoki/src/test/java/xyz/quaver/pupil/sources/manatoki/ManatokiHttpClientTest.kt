@@ -32,4 +32,38 @@ class ManatokiHttpClientTest {
         assertEquals(expectedTopWeekly, result.topWeekly)
     }
 
+    @Test
+    fun mangaListing() = runTest {
+        val expectedMangaListing: MangaListing = Json.decodeFromString(
+            javaClass.getResource("/expected_manga_listing.json")!!.readText()
+        )
+
+        val mockEngine = MockEngine { _ ->
+            respond(javaClass.getResource("/manga_listing.html")!!.readText())
+        }
+
+        val client = ManatokiHttpClient(mockEngine)
+
+        val result = client.getItem(expectedMangaListing.itemID)
+
+        assertEquals(expectedMangaListing, result)
+    }
+
+    @Test
+    fun readerInfo() = runTest {
+        val expectedReaderInfo: ReaderInfo = Json.decodeFromString(
+            javaClass.getResource("/expected_reader_info.json")!!.readText()
+        )
+
+        val mockEngine = MockEngine { _ ->
+            respond(javaClass.getResource("/reader_info.html")!!.readText())
+        }
+
+        val client = ManatokiHttpClient(mockEngine)
+
+        val result = client.getItem(expectedReaderInfo.itemID)
+
+        assertEquals(expectedReaderInfo, result)
+    }
+
 }

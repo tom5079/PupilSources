@@ -10,6 +10,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
+import org.jsoup.select.Evaluator
 
 @Serializable
 data class Thumbnail(
@@ -63,8 +65,8 @@ data class ReaderInfo(
     val title: String,
     val urls: List<String>,
     val listingItemID: String,
-    val prevItemID: String,
-    val nextItemID: String
+    val prevItemID: String?,
+    val nextItemID: String?
 ): Parcelable
 
 class ManatokiHttpClient(engine: HttpClientEngine) {
@@ -80,14 +82,20 @@ class ManatokiHttpClient(engine: HttpClientEngine) {
         runCatching {
             val doc = Jsoup.parse(httpClient.get("https://manatoki.net/").bodyAsText())
 
-            val misoPostGallery = doc.select(".miso-post-gallery")
+            val misoPostGallery = doc.getElementsByClass("miso-post-gallery")
 
             val recentUpload = misoPostGallery[0]
                 .select(".post-image > a")
                 .map { entry ->
-                    val itemID = entry.attr("href").takeLastWhile { it != '/' }
-                    val title = entry.selectFirst("div.in-subject > b")!!.ownText()
-                    val thumbnail = entry.selectFirst("img")!!.attr("src")
+                    val itemID = entry
+                        .attr("href")
+                        .takeLastWhile { it != '/' }
+                    val title = entry
+                        .selectFirst("div.in-subject > b")!!
+                        .ownText()
+                    val thumbnail = entry
+                        .selectFirst(Evaluator.Tag("img"))!!
+                        .attr("src")
 
                     Thumbnail(itemID, title, thumbnail)
                 }
@@ -97,12 +105,12 @@ class ManatokiHttpClient(engine: HttpClientEngine) {
                 .map { entry ->
                     val itemID = entry.attr("href").takeLastWhile { it != '/' }
                     val title = entry.selectFirst("div.in-subject")!!.ownText()
-                    val thumbnail = entry.selectFirst("img")!!.attr("src")
+                    val thumbnail = entry.selectFirst(Evaluator.Tag("img"))!!.attr("src")
 
                     Thumbnail(itemID, title, thumbnail)
                 }
 
-            val misoPostList = doc.select(".miso-post-list")
+            val misoPostList = doc.getElementsByClass("miso-post-list")
 
             val topWeekly = misoPostList[4]
                 .select(".post-row > a")
@@ -115,6 +123,170 @@ class ManatokiHttpClient(engine: HttpClientEngine) {
                 }
 
             MainData(recentUpload, mangaList, topWeekly)
+        }.getOrNull()
+    }
+
+    private fun parseReaderInfo(itemID: String, doc: Document): ReaderInfo {
+        val htmlData = buildString {
+            doc.selectFirst(".view-padding > script")!!
+                .data()
+                .lineSequence()
+                .forEach { line ->
+                    if (!line.startsWith("html_data")) return@forEach
+
+                    line.drop(12).dropLast(2).split('.').forEach {
+                        if (it.isNotBlank()) appendCodePoint(it.toInt(16))
+                    }
+                }
+        }
+        val urls = Jsoup.parse(htmlData)
+            .select("img[^data-]:not([style])")
+            .map { url ->
+                url.attributes()
+                    .first { attr -> attr.key.startsWith("data-") }
+                    .value
+            }
+
+        val title = doc
+            .selectFirst(Evaluator.Class("toon-title"))!!
+            .ownText()
+
+        val listingItemID = doc
+            .selectFirst("a:contains(전체목록)")!!
+            .attr("href")
+            .takeLastWhile { it != '/' }
+
+        val prevItemID = doc
+            .getElementById("goPrevBtn")!!
+            .attr("href")
+            .let { href ->
+                when {
+                    href == "#prev" -> null
+                    href.contains('?') -> href.dropLastWhile { it != '?' }.drop(1)
+                    else -> href
+                }?.takeLastWhile { it != '/' }
+            }
+
+        val nextItemID = doc
+            .getElementById("goNextBtn")!!
+            .attr("href")
+            .let { href ->
+                when {
+                    href == "#next" -> null
+                    href.contains('?') -> href.dropLastWhile { it != '?' }.drop(1)
+                    else -> href
+                }?.takeLastWhile { it != '/' }
+            }
+
+        return ReaderInfo(
+            itemID,
+            title,
+            urls,
+            listingItemID,
+            prevItemID,
+            nextItemID
+        )
+    }
+
+    private fun parseMangaListing(itemID: String, doc: Document): MangaListing {
+        val titleBlock = doc.selectFirst("div.view-title")!!
+
+        val title = titleBlock
+            .selectFirst("div.view-content:not([itemprop])")!!
+            .text()
+
+        val author = titleBlock
+            .selectFirst("div.view-content:not([itemprop]):contains(작가) a")!!
+            .text()
+
+        val tags = titleBlock
+            .select("div.view-content:not([itemprop]):contains(분류) a")
+            .map { it.text() }
+
+        val type = titleBlock
+            .selectFirst("div.view-content:not([itemprop]):contains(발행구분) a")!!
+            .text()
+
+        val thumbnail = titleBlock
+            .selectFirst(Evaluator.Tag("img"))!!
+            .attr("src")
+
+        val thumbsUpCount = titleBlock
+            .select("i.fa-thumbs-up + b")
+            .text()
+            .toInt()
+
+        val entries = doc
+            .select("div.serial-list .list-item")
+            .map { entry ->
+                val episode = entry
+                    .selectFirst(Evaluator.Class("wr-num"))!!
+                    .text()
+                    .toInt()
+                val subject = entry.selectFirst(Evaluator.Class("item-subject"))!!
+                val entryItemID = subject
+                    .attr("href")
+                    .dropLastWhile { it != '?' }
+                    .dropLast(1)
+                    .takeLastWhile { it != '/' }
+                val entryTitle = subject.ownText()
+                val starRating = entry.selectFirst(Evaluator.Class("wr-star"))!!
+                    .text()
+                    .drop(1)
+                    .takeWhile { it != ')' }
+                    .toFloat()
+                val date = entry.selectFirst(Evaluator.Class("wr-date"))!!.text()
+                val viewCount = entry
+                    .selectFirst(Evaluator.Class("wr-hit"))!!
+                    .text()
+                    .replace(",", "")
+                    .toInt()
+                val entryThumbsUpCount = entry
+                    .selectFirst(Evaluator.Class("wr-good"))!!
+                    .text()
+                    .replace(",", "")
+                    .toInt()
+
+                MangaListingEntry(
+                    entryItemID,
+                    episode,
+                    entryTitle,
+                    starRating,
+                    date,
+                    viewCount,
+                    entryThumbsUpCount
+                )
+            }
+
+        return MangaListing(
+            itemID,
+            title,
+            thumbnail,
+            author,
+            tags,
+            type,
+            thumbsUpCount,
+            entries
+        )
+    }
+
+    /**
+     * Fetch MangaListing or ReaderInfo.
+     * Returns null when exception occurs.
+     */
+    suspend fun getItem(itemID: String): Any? = withContext(Dispatchers.IO) {
+        runCatching {
+            val doc = Jsoup.parse(
+                httpClient
+                    .get("https://manatoki.net/comic/$itemID")
+                    .bodyAsText()
+            )
+
+            if (doc.getElementsByClass("serial-list").isEmpty())
+                parseReaderInfo(itemID, doc)
+            else
+                parseMangaListing(itemID, doc)
+
         }.getOrNull()
     }
 }
