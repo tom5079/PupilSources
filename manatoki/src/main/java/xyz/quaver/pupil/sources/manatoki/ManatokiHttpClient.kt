@@ -7,6 +7,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
 
@@ -30,11 +31,51 @@ data class MainData(
     val topWeekly: List<TopWeekly>
 )
 
+@Parcelize
+@Serializable
+data class MangaListingEntry(
+    val itemID: String,
+    val episode: Int,
+    val title: String,
+    val starRating: Float,
+    val date: String,
+    val viewCount: Int,
+    val thumbsUpCount: Int
+): Parcelable
+
+@Parcelize
+@Serializable
+data class MangaListing(
+    val itemID: String,
+    val title: String,
+    val thumbnail: String,
+    val author: String,
+    val tags: List<String>,
+    val type: String,
+    val thumbsUpCount: Int,
+    val entries: List<MangaListingEntry>
+): Parcelable
+
+@Parcelize
+@Serializable
+data class ReaderInfo(
+    val itemID: String,
+    val title: String,
+    val urls: List<String>,
+    val listingItemID: String,
+    val prevItemID: String,
+    val nextItemID: String
+): Parcelable
+
 class ManatokiHttpClient(engine: HttpClientEngine) {
     private val httpClient = HttpClient(engine)
 
     private val baseUrl = "https://manatoki.net"
 
+    /**
+     * Fetch main menu.
+     * Returns null when exception occurs.
+     */
     suspend fun main(): MainData? = withContext(Dispatchers.IO) {
         runCatching {
             val doc = Jsoup.parse(httpClient.get("https://manatoki.net/").bodyAsText())
