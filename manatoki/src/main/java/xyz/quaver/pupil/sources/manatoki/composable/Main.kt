@@ -18,6 +18,7 @@
 
 package xyz.quaver.pupil.sources.manatoki.composable
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -49,16 +50,16 @@ import com.google.accompanist.insets.navigationBarsPadding
 import com.google.accompanist.insets.rememberInsetsPaddingValues
 import com.google.accompanist.insets.ui.Scaffold
 import com.google.accompanist.insets.ui.TopAppBar
-import io.ktor.client.*
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.kodein.di.compose.rememberInstance
 import org.kodein.di.compose.rememberViewModel
-import xyz.quaver.pupil.R
 import xyz.quaver.pupil.sources.R
 import xyz.quaver.pupil.sources.base.util.withLocalResource
 import xyz.quaver.pupil.sources.manatoki.*
+import xyz.quaver.pupil.sources.manatoki.networking.ManatokiHttpClient
+import xyz.quaver.pupil.sources.manatoki.networking.MangaListing
+import xyz.quaver.pupil.sources.manatoki.networking.ReaderInfo
 import xyz.quaver.pupil.sources.manatoki.viewmodel.MainViewModel
 
 @ExperimentalMaterialApi
@@ -75,39 +76,22 @@ fun Main(
 
     val database: ManatokiDatabase by rememberInstance()
     val historyDao = remember { database.historyDao() }
-    val recent by remember { historyDao.getRecentManga() }.collectAsState(emptyList())
-    val recentManga = remember { mutableStateListOf<Thumbnail>() }
-
-    // TODO("Move to viewmodel")
-    LaunchedEffect(recent) {
-        recentManga.clear()
-
-        recent.forEach {
-            if (isActive)
-                client.getItem(it, onListing = {
-                    recentManga.add(
-                        Thumbnail(it.itemID, it.title, it.thumbnail)
-                    )
-                })
-        }
-    }
 
     val sheetState = rememberModalBottomSheetState(ModalBottomSheetValue.Hidden)
 
     val coroutineScope = rememberCoroutineScope()
 
+    val data = model.mainData
+
     LaunchedEffect(Unit) {
         model.load()
     }
 
-//    BackHandler {
-//        if (sheetState.currentValue == ModalBottomSheetValue.Hidden)
-//            navController.popBackStack()
-//        else
-//            coroutineScope.launch {
-//                sheetState.hide()
-//            }
-//    }
+    BackHandler(sheetState.currentValue != ModalBottomSheetValue.Hidden) {
+        coroutineScope.launch {
+            sheetState.hide()
+        }
+    }
 
     var mangaListing: MangaListing? by rememberSaveable { mutableStateOf(null) }
     var recentItem: String? by rememberSaveable { mutableStateOf(null) }
@@ -178,6 +162,16 @@ fun Main(
         }
     }
 
+    val openItem: (String) -> Unit = { itemID ->
+        coroutineScope.launch {
+            when (val item = client.getItem(itemID)) {
+                is MangaListing -> onListing(item)
+                is ReaderInfo -> onReader(item)
+                else -> error("client.getItem() did not return MangaListing nor ReaderInfo")
+            }
+        }
+    }
+
     ModalBottomSheetLayout(
         sheetState = sheetState,
         sheetShape = RoundedCornerShape(32.dp, 32.dp, 0.dp, 0.dp),
@@ -190,7 +184,7 @@ fun Main(
                 recentItem = recentItem
             ) {
                 coroutineScope.launch {
-                    client.getItem(it, onListing, onReader)
+                    openItem(it)
                 }
             }
         }
@@ -232,21 +226,65 @@ fun Main(
                 }
             }
         ) { contentPadding ->
-            Box(Modifier.padding(contentPadding)) {
-                Column(
-                    Modifier
-                        .padding(8.dp, 0.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    if (recentManga.isNotEmpty()) {
+            Box(Modifier.padding(contentPadding).fillMaxSize()) {
+                if (data == null) {
+                    CircularProgressIndicator(Modifier.align(Alignment.Center))
+                } else {
+                    Column(
+                        Modifier
+                            .padding(8.dp, 0.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        if (model.recentManga.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "이어 보기",
+                                    style = MaterialTheme.typography.h5
+                                )
+
+                                IconButton(onClick = navigateToRecent) {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = null
+                                    )
+                                }
+                            }
+
+                            LazyRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(210.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(model.recentManga) { item ->
+                                    Thumbnail(
+                                        item,
+                                        Modifier
+                                            .width(180.dp)
+                                            .aspectRatio(6 / 7f)
+                                    ) {
+                                        coroutineScope.launch {
+                                            mangaListing = null
+                                            sheetState.animateTo(ModalBottomSheetValue.Expanded)
+                                        }
+                                        openItem(it)
+                                    }
+                                }
+                            }
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                "이어 보기",
+                                "최신화",
                                 style = MaterialTheme.typography.h5
                             )
 
@@ -264,7 +302,7 @@ fun Main(
                                 .height(210.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(recentManga) { item ->
+                            items(data.recentUpload) { item ->
                                 Thumbnail(
                                     item,
                                     Modifier
@@ -275,169 +313,122 @@ fun Main(
                                         mangaListing = null
                                         sheetState.animateTo(ModalBottomSheetValue.Expanded)
                                     }
-                                    coroutineScope.launch {
-                                        client.getItem(it, onListing, onReader)
-                                    }
+                                    openItem(it)
                                 }
                             }
                         }
-                    }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            "최신화",
-                            style = MaterialTheme.typography.h5
-                        )
+                        Divider()
 
-                        IconButton(onClick = navigateToRecent) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = null
-                            )
-                        }
-                    }
-
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(210.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(model.mainData.recentUpload) { item ->
-                            Thumbnail(item,
-                                Modifier
-                                    .width(180.dp)
-                                    .aspectRatio(6 / 7f)) {
-                                coroutineScope.launch {
-                                    mangaListing = null
-                                    sheetState.animateTo(ModalBottomSheetValue.Expanded)
-                                }
-                                coroutineScope.launch {
-                                    client.getItem(it, onListing, onReader)
-                                }
-                            }
-                        }
-                    }
-
-                    Divider()
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            BoardButton("마나게시판", Color(0xFF007DB4))
-                            BoardButton("유머/가십", Color(0xFFF09614))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                BoardButton("마나게시판", Color(0xFF007DB4))
+                                BoardButton("유머/가십", Color(0xFFF09614))
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                BoardButton("역식자게시판", Color(0xFFA0C850))
+                                BoardButton("원본게시판", Color(0xFFFF4500))
+                            }
                         }
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            BoardButton("역식자게시판", Color(0xFFA0C850))
-                            BoardButton("원본게시판", Color(0xFFFF4500))
-                        }
-                    }
+                            Text("만화 목록", style = MaterialTheme.typography.h5)
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("만화 목록", style = MaterialTheme.typography.h5)
-
-                        IconButton(onClick = navigateToSearch) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = null
-                            )
-                        }
-                    }
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(210.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(model.mainData.mangaList) { item ->
-                            Thumbnail(item,
-                                Modifier
-                                    .width(180.dp)
-                                    .aspectRatio(6f / 7)) {
-                                coroutineScope.launch {
-                                    mangaListing = null
-                                    sheetState.animateTo(ModalBottomSheetValue.Expanded)
-                                }
-                                coroutineScope.launch {
-                                    client.getItem(it, onListing, onReader)
-                                }
+                            IconButton(onClick = navigateToSearch) {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = null
+                                )
                             }
                         }
-                    }
-
-                    Text("주간 베스트", style = MaterialTheme.typography.h5)
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        model.mainData.topWeekly.forEachIndexed { index, item ->
-                            Card(
-                                modifier = Modifier.clickable {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(210.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(data.mangaList) { item ->
+                                Thumbnail(
+                                    item,
+                                    Modifier
+                                        .width(180.dp)
+                                        .aspectRatio(6f / 7)
+                                ) {
                                     coroutineScope.launch {
                                         mangaListing = null
                                         sheetState.animateTo(ModalBottomSheetValue.Expanded)
                                     }
-
-                                    coroutineScope.launch {
-                                        client.getItem(item.itemID, onListing, onReader)
-                                    }
+                                    openItem(it)
                                 }
-                            ) {
-                                Row(
-                                    modifier = Modifier.height(IntrinsicSize.Min),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            }
+                        }
+
+                        Text("주간 베스트", style = MaterialTheme.typography.h5)
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            data.topWeekly.forEachIndexed { index, item ->
+                                Card(
+                                    modifier = Modifier.clickable {
+                                        coroutineScope.launch {
+                                            mangaListing = null
+                                            sheetState.animateTo(ModalBottomSheetValue.Expanded)
+                                        }
+                                        openItem(item.itemID)
+                                    }
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .background(Color(0xFF64C3F5))
-                                            .width(24.dp)
-                                            .fillMaxHeight(),
-                                        contentAlignment = Alignment.Center
+                                    Row(
+                                        modifier = Modifier.height(IntrinsicSize.Min),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(Color(0xFF64C3F5))
+                                                .width(24.dp)
+                                                .fillMaxHeight(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                (index + 1).toString(),
+                                                color = Color.White,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+
                                         Text(
-                                            (index + 1).toString(),
-                                            color = Color.White,
-                                            textAlign = TextAlign.Center
+                                            item.title,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(0.dp, 4.dp),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+
+                                        Text(
+                                            item.count,
+                                            color = Color(0xFFFF4500)
                                         )
                                     }
-
-                                    Text(
-                                        item.title,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .padding(0.dp, 4.dp),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-
-                                    Text(
-                                        item.count,
-                                        color = Color(0xFFFF4500)
-                                    )
                                 }
                             }
                         }
                     }
-
-                    Box(Modifier.navigationBarsPadding())
                 }
             }
         }

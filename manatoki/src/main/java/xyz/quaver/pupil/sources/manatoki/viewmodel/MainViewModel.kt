@@ -20,29 +20,55 @@ package xyz.quaver.pupil.sources.manatoki.viewmodel
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import xyz.quaver.pupil.sources.manatoki.MainData
-import xyz.quaver.pupil.sources.manatoki.ManatokiHttpClient
+import xyz.quaver.pupil.sources.manatoki.*
+import xyz.quaver.pupil.sources.manatoki.networking.MainData
+import xyz.quaver.pupil.sources.manatoki.networking.ManatokiHttpClient
+import xyz.quaver.pupil.sources.manatoki.networking.MangaListing
+import xyz.quaver.pupil.sources.manatoki.networking.Thumbnail
 
 class MainViewModel(
-    private val client: ManatokiHttpClient
+    private val client: ManatokiHttpClient,
+    private val database: ManatokiDatabase
 ) : ViewModel() {
     private var loadJob: Job? = null
 
     var mainData by mutableStateOf<MainData?>(null)
         private set
 
+    var error by mutableStateOf(false)
+        private set
+
+    var recentManga by mutableStateOf<List<Thumbnail>>(emptyList())
+        private set
+
+    init {
+        viewModelScope.launch {
+            database
+                .historyDao()
+                .getRecentManga()
+                .collectLatest { mangaList ->
+                    recentManga = mangaList.map { manga ->
+                        val mangaListing = client.getItem(manga) as MangaListing
+                        Thumbnail(mangaListing.itemID, mangaListing.title, mangaListing.thumbnail)
+                    }
+                }
+        }
+    }
+
     fun load() {
         viewModelScope.launch {
             loadJob?.cancelAndJoin()
+            loadJob = launch {
 
-            mainData = client.main()
+                mainData = client.main()
+            }
         }
     }
 }

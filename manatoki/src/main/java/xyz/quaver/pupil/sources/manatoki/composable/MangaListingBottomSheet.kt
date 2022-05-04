@@ -48,7 +48,7 @@ import com.google.accompanist.flowlayout.FlowRow
 import com.google.accompanist.insets.LocalWindowInsets
 import com.google.accompanist.insets.navigationBarsPadding
 import com.google.accompanist.insets.rememberInsetsPaddingValues
-import xyz.quaver.pupil.sources.manatoki.MangaListing
+import xyz.quaver.pupil.sources.manatoki.networking.MangaListing
 
 private val FabSpacing = 8.dp
 private val HeightPercentage = 75 // take 75% of the available space
@@ -113,8 +113,6 @@ fun MangaListingBottomSheet(
     nextItem: String? = null,
     onOpenItem: (String) -> Unit = { },
 ) {
-    val coroutineScope = rememberCoroutineScope()
-
     Box(
         modifier = Modifier.fillMaxWidth()
     ) {

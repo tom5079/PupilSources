@@ -2,7 +2,6 @@ package xyz.quaver.pupil.sources.manatoki
 
 import android.app.Application
 import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.navigation.compose.NavHost
@@ -35,7 +34,7 @@ class Manatoki(app: Application) : Source() {
 
         bindSingleton { ManatokiHttpClient(OkHttp.create()) }
 
-        bindProvider { MainViewModel(instance()) }
+        bindProvider { MainViewModel(instance(), instance()) }
     }
 
     @Composable
