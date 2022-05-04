@@ -91,7 +91,7 @@ object AndroidTest {
 }
 
 object Misc {
-    const val COIL_COMPOSE = "io.coil-kt:coil-compose:1.4.0"
+    const val COIL_COMPOSE = "io.coil-kt:coil-compose:2.0.0-rc03"
     const val PROTOBUF = "com.google.protobuf:protobuf-javalite:3.19.1"
     const val DOCUMENTFILEX = "xyz.quaver:documentfilex:0.7.1"
     const val SUBSAMPLEDIMAGE = "xyz.quaver:subsampledimage:0.0.1-alpha19-SNAPSHOT"

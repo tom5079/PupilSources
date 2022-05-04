@@ -1,10 +1,15 @@
-package xyz.quaver.pupil.sources.manatoki
+package xyz.quaver.pupil.sources.manatoki.networking
 
 import android.os.Parcelable
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.engine.*
+import io.ktor.client.plugins.cache.*
+import io.ktor.client.plugins.cookies.*
 import io.ktor.client.request.*
+import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
+import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
@@ -12,6 +17,7 @@ import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.select.Evaluator
+import java.nio.ByteBuffer
 
 @Serializable
 data class Thumbnail(
@@ -70,9 +76,17 @@ data class ReaderInfo(
 ): Parcelable
 
 class ManatokiHttpClient(engine: HttpClientEngine) {
-    private val httpClient = HttpClient(engine)
 
-    private val baseUrl = "https://manatoki.net"
+    private val httpClient = HttpClient(engine) {
+        install(ManatokiCaptcha)
+        install(HttpCookies)
+        install(HttpCache)
+    }
+
+    private val baseUrl = "https://manatoki130.net"
+    private val captchaUrl = "$baseUrl/plugin/kcaptcha"
+
+    suspend fun getCookie() = httpClient.cookies(baseUrl)
 
     /**
      * Fetch main menu.
@@ -287,6 +301,29 @@ class ManatokiHttpClient(engine: HttpClientEngine) {
             else
                 parseMangaListing(itemID, doc)
 
+        }.getOrNull()
+    }
+
+    suspend fun reloadCaptcha(): ByteBuffer? = withContext(Dispatchers.IO) {
+        runCatching {
+            httpClient.post("$captchaUrl/kcaptcha_session.php")
+
+            ByteBuffer.wrap(
+                httpClient
+                    .get("$captchaUrl/kcaptcha_image.php?t=${System.currentTimeMillis()}")
+                    .body<ByteArray>()
+            )
+        }.getOrNull()
+    }
+
+    suspend fun checkCaptcha(key: String): Boolean? = withContext(Dispatchers.IO) {
+        runCatching {
+            httpClient.submitForm(
+                url = "$baseUrl/bbs/captcha_check.php",
+                formParameters = Parameters.build {
+                    append("captcha_key", key)
+                }
+            ).status == HttpStatusCode.Found
         }.getOrNull()
     }
 }

@@ -18,7 +18,9 @@ import org.kodein.di.compose.withDI
 import org.kodein.di.instance
 import xyz.quaver.pupil.sources.base.util.LocalResourceContext
 import xyz.quaver.pupil.sources.core.Source
+import xyz.quaver.pupil.sources.manatoki.composable.CaptchaDialog
 import xyz.quaver.pupil.sources.manatoki.composable.Main
+import xyz.quaver.pupil.sources.manatoki.networking.ManatokiHttpClient
 import xyz.quaver.pupil.sources.manatoki.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -39,6 +41,8 @@ class Manatoki(app: Application) : Source() {
     @Composable
     override fun Entry() = withDI(di) {
         val navController = rememberNavController()
+
+        CaptchaDialog()
 
         CompositionLocalProvider(LocalResourceContext provides resourceContext) {
             NavHost(navController, startDestination = "main") {

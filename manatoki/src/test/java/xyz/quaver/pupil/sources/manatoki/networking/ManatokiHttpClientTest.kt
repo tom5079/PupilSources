@@ -1,12 +1,10 @@
-package xyz.quaver.pupil.sources.manatoki
+package xyz.quaver.pupil.sources.manatoki.networking
 
 import io.ktor.client.engine.mock.*
-import io.ktor.client.engine.okhttp.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

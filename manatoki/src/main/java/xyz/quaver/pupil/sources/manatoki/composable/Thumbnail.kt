@@ -32,7 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberImagePainter
-import xyz.quaver.pupil.sources.manatoki.Thumbnail
+import xyz.quaver.pupil.sources.manatoki.networking.Thumbnail
 
 @Composable
 fun Thumbnail(
