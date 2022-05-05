@@ -22,8 +22,10 @@ import xyz.quaver.pupil.sources.core.Source
 import xyz.quaver.pupil.sources.manatoki.composable.CaptchaDialog
 import xyz.quaver.pupil.sources.manatoki.composable.Main
 import xyz.quaver.pupil.sources.manatoki.composable.Reader
+import xyz.quaver.pupil.sources.manatoki.composable.Recent
 import xyz.quaver.pupil.sources.manatoki.networking.ManatokiHttpClient
 import xyz.quaver.pupil.sources.manatoki.viewmodel.MainViewModel
+import xyz.quaver.pupil.sources.manatoki.viewmodel.RecentViewModel
 
 @OptIn(ExperimentalMaterialApi::class)
 class Manatoki(app: Application) : Source() {
@@ -40,6 +42,7 @@ class Manatoki(app: Application) : Source() {
 
         bindProvider { MainViewModel(instance(), instance()) }
         bindProvider { ReaderBaseViewModel(di) }
+        bindProvider { RecentViewModel(instance()) }
     }
 
     @Composable
@@ -58,6 +61,7 @@ class Manatoki(app: Application) : Source() {
                         navigateToSettings = { }
                     )
                 }
+
                 composable("reader/{itemID}") {
                     val itemID = navController.currentBackStackEntry?.arguments?.getString("itemID") ?: ""
 
@@ -68,6 +72,13 @@ class Manatoki(app: Application) : Source() {
                                 popUpTo("main")
                             }
                         },
+                        navigateUp = { navController.navigateUp() }
+                    )
+                }
+
+                composable("recent") {
+                    Recent(
+                        navigateToReader = { itemID -> navController.navigate("reader/$itemID") },
                         navigateUp = { navController.navigateUp() }
                     )
                 }

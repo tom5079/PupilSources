@@ -17,6 +17,7 @@ import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.select.Evaluator
+import xyz.quaver.pupil.sources.manatoki.composable.Thumbnail
 import java.nio.ByteBuffer
 
 @Serializable
@@ -325,5 +326,24 @@ class ManatokiHttpClient(engine: HttpClientEngine) {
                 }
             ).status == HttpStatusCode.Found
         }.getOrNull()
+    }
+
+    suspend fun recent(page: Int): List<Thumbnail>? = withContext(Dispatchers.IO) {
+        runCatching {
+            val doc = Jsoup.parse(
+                httpClient
+                    .get("$baseUrl/bbs/page.php?hid=update&page=$page")
+                    .bodyAsText()
+            )
+
+            doc.select("div.post-list").map { elem ->
+                val itemID = elem.attr("rel")
+                val title = elem.selectFirst(".post-subject > a")!!.ownText()
+
+                val thumbnail = elem.getElementsByTag("img").attr("src")
+
+                Thumbnail(itemID, title, thumbnail)
+            }
+        }.onFailure { it.printStackTrace() }.getOrNull()
     }
 }

@@ -64,4 +64,21 @@ class ManatokiHttpClientTest {
         assertEquals(expectedReaderInfo, result)
     }
 
+    @Test
+    fun recent() = runTest {
+        val expectedRecent: List<Thumbnail> = Json.decodeFromString(
+            javaClass.getResource("/expected_recent.json")!!.readText()
+        )
+
+        val mockEngine = MockEngine { _ ->
+            respond(javaClass.getResource("/recent.html")!!.readText())
+        }
+
+        val client = ManatokiHttpClient(mockEngine)
+
+        val recent = client.recent(0)
+
+        assertEquals(expectedRecent, recent)
+    }
+
 }
