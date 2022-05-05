@@ -52,8 +52,15 @@ fun CaptchaDialog() {
     if (captchaRequested) {
         Dialog(onDismissRequest = { }) {
             Card {
-                Column(Modifier.padding(8.dp).fillMaxWidth()) {
-                    Text("캡챠 인증!", style = MaterialTheme.typography.h6)
+                Column(
+                    Modifier.padding(8.dp).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "캡챠 인증!",
+                        style = MaterialTheme.typography.h6,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
 
                     Box(
                         Modifier
@@ -69,7 +76,7 @@ fun CaptchaDialog() {
                                     .align(Alignment.Center)
                             )
                         } else {
-                            CircularProgressIndicator()
+                            CircularProgressIndicator(Modifier.align(Alignment.Center))
                         }
                     }
 
