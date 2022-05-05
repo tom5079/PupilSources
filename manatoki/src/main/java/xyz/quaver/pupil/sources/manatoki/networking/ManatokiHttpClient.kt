@@ -34,6 +34,7 @@ data class TopWeekly(
     val count: String
 )
 
+@Serializable
 data class MainData(
     val recentUpload: List<Thumbnail>,
     val mangaList: List<Thumbnail>,
