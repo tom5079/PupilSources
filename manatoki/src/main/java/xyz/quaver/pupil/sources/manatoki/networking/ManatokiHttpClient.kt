@@ -77,7 +77,7 @@ data class ReaderInfo(
 
 class ManatokiHttpClient(engine: HttpClientEngine) {
 
-    private val httpClient = HttpClient(engine) {
+    val httpClient = HttpClient(engine) {
         install(ManatokiCaptcha)
         install(HttpCookies)
         install(HttpCache)

@@ -14,11 +14,14 @@ import org.kodein.di.android.subDI
 import org.kodein.di.bindProvider
 import org.kodein.di.bindSingleton
 import org.kodein.di.compose.withDI
+import org.kodein.di.direct
 import org.kodein.di.instance
+import xyz.quaver.pupil.sources.base.composables.ReaderBaseViewModel
 import xyz.quaver.pupil.sources.base.util.LocalResourceContext
 import xyz.quaver.pupil.sources.core.Source
 import xyz.quaver.pupil.sources.manatoki.composable.CaptchaDialog
 import xyz.quaver.pupil.sources.manatoki.composable.Main
+import xyz.quaver.pupil.sources.manatoki.composable.Reader
 import xyz.quaver.pupil.sources.manatoki.networking.ManatokiHttpClient
 import xyz.quaver.pupil.sources.manatoki.viewmodel.MainViewModel
 
@@ -33,8 +36,10 @@ class Manatoki(app: Application) : Source() {
         }
 
         bindSingleton { ManatokiHttpClient(OkHttp.create()) }
+        bindProvider { direct.instance<ManatokiHttpClient>().httpClient }
 
         bindProvider { MainViewModel(instance(), instance()) }
+        bindProvider { ReaderBaseViewModel(di) }
     }
 
     @Composable
@@ -51,6 +56,19 @@ class Manatoki(app: Application) : Source() {
                         navigateToRecent = { navController.navigate("recent") },
                         navigateToSearch = { navController.navigate("search") },
                         navigateToSettings = { }
+                    )
+                }
+                composable("reader/{itemID}") {
+                    val itemID = navController.currentBackStackEntry?.arguments?.getString("itemID") ?: ""
+
+                    Reader(
+                        itemID,
+                        navigateToReader = { targetItemID ->
+                            navController.navigate("reader/$targetItemID") {
+                                popUpTo("main")
+                            }
+                        },
+                        navigateUp = { navController.navigateUp() }
                     )
                 }
             }
