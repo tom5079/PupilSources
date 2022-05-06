@@ -104,14 +104,14 @@ fun Main(
         ).calculateBottomPadding().toPx()
     }
 
-    val onListing: (MangaListing) -> Unit = {
-        mangaListing = it
+    val onListing: (MangaListing) -> Unit = { listing ->
+        mangaListing = listing
 
         coroutineScope.launch {
-            val recentItemID = historyDao.getAll(it.itemID).firstOrNull() ?: return@launch
+            val recentItemID = historyDao.getAll(listing.itemID).firstOrNull() ?: return@launch
             recentItem = recentItemID
 
-            while (mangaListingListState.layoutInfo.totalItemsCount != it.entries.size) {
+            while (mangaListingListState.layoutInfo.totalItemsCount != listing.entries.size) {
                 delay(100)
             }
 
@@ -120,7 +120,7 @@ fun Main(
             }
 
             val targetIndex =
-                it.entries.indexOfFirst { entry -> entry.itemID == recentItemID }
+                listing.entries.indexOfFirst { it.itemID == recentItemID }
 
             mangaListingListState.scrollToItem(targetIndex)
 

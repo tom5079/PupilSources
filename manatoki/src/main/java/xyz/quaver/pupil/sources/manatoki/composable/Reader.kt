@@ -239,7 +239,7 @@ fun Reader(
                                                 }
 
                                                 val targetIndex =
-                                                    listing.entries.indexOfFirst { listing.itemID == itemID }
+                                                    listing.entries.indexOfFirst { it.itemID == itemID }
 
                                                 mangaListingListState.scrollToItem(targetIndex)
 

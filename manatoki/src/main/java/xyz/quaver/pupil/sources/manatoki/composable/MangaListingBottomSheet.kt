@@ -26,7 +26,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.ArrowRight
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
@@ -213,14 +212,14 @@ fun MangaListingBottomSheet(
                 bottom = {
                     LazyColumn(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxSize()
                             .onGloballyPositioned {
                                 onListSize(it.size.toSize())
                             },
                         state = listState,
                         contentPadding = rememberInsetsPaddingValues(LocalWindowInsets.current.navigationBars)
                     ) {
-                        itemsIndexed(mangaListing.entries, key = { _, entry -> entry.itemID }) { index, entry ->
+                        items(mangaListing.entries, key = { it.itemID }) { entry ->
                             Row(
                                 modifier = Modifier
                                     .clickable {

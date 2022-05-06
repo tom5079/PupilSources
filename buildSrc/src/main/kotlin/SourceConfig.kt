@@ -9,7 +9,7 @@ object Versions {
     const val KOTLIN = "1.6.10"
     const val COROUTINE = "1.6.0"
 
-    const val JETPACK_COMPOSE = "1.1.1"
+    const val JETPACK_COMPOSE = "1.2.0-alpha07"
     const val ACCOMPANIST = "0.23.1"
 
     const val KTOR_CLIENT = "2.0.0"

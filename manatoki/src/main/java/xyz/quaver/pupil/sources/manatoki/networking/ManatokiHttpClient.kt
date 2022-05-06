@@ -17,9 +17,7 @@ import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.select.Evaluator
-import xyz.quaver.pupil.sources.manatoki.CookieDao
 import xyz.quaver.pupil.sources.manatoki.ManatokiDatabase
-import xyz.quaver.pupil.sources.manatoki.composable.Thumbnail
 import java.nio.ByteBuffer
 
 @Serializable
