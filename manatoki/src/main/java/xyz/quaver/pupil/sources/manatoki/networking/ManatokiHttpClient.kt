@@ -179,7 +179,7 @@ data class SearchResultEntry(
     val itemID: String,
     val title: String,
     val thumbnail: String,
-    val artist: String,
+    val artist: String?,
     val type: String,
     val lastUpdate: String
 ): Parcelable
@@ -496,7 +496,7 @@ class ManatokiHttpClient(
                     value.ifEmpty { null }
                 }
 
-                val result = doc.getElementsByClass("list-item").map { elem ->
+                val result = doc.select("div.list-item").map { elem ->
                     val itemID = elem
                         .selectFirst(".img-item > a")!!
                         .attr("href")
@@ -511,8 +511,8 @@ class ManatokiHttpClient(
                         .attr("src")
 
                     val artist = elem
-                        .selectFirst(Evaluator.Class("list-artist"))!!
-                        .text()
+                        .selectFirst(Evaluator.Class("list-artist"))
+                        ?.text()
 
                     val type = elem
                         .selectFirst(Evaluator.Class("list-publish"))!!
