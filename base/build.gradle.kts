@@ -68,8 +68,6 @@ dependencies {
 
     implementation(Misc.PROTOBUF)
 
-    implementation(Misc.GUAVA)
-
     testImplementation(Test.JUNIT)
     androidTestImplementation(AndroidTest.JUNIT)
     androidTestImplementation(AndroidTest.RULES)
