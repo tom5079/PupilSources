@@ -1,6 +1,7 @@
 package xyz.quaver.pupil.sources.manatoki
 
 import android.app.Application
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -19,15 +20,12 @@ import org.kodein.di.instance
 import xyz.quaver.pupil.sources.base.composables.ReaderBaseViewModel
 import xyz.quaver.pupil.sources.base.util.LocalResourceContext
 import xyz.quaver.pupil.sources.core.Source
-import xyz.quaver.pupil.sources.manatoki.composable.CaptchaDialog
-import xyz.quaver.pupil.sources.manatoki.composable.Main
-import xyz.quaver.pupil.sources.manatoki.composable.Reader
-import xyz.quaver.pupil.sources.manatoki.composable.Recent
+import xyz.quaver.pupil.sources.manatoki.composable.*
 import xyz.quaver.pupil.sources.manatoki.networking.ManatokiHttpClient
 import xyz.quaver.pupil.sources.manatoki.viewmodel.MainViewModel
 import xyz.quaver.pupil.sources.manatoki.viewmodel.RecentViewModel
+import xyz.quaver.pupil.sources.manatoki.viewmodel.SearchViewModel
 
-@OptIn(ExperimentalMaterialApi::class)
 class Manatoki(app: Application) : Source() {
     private val resourceContext = app.createPackageContext(packageName, 0)
 
@@ -43,6 +41,7 @@ class Manatoki(app: Application) : Source() {
         bindProvider { MainViewModel(instance(), instance()) }
         bindProvider { ReaderBaseViewModel(di) }
         bindProvider { RecentViewModel(instance()) }
+        bindProvider { SearchViewModel(instance()) }
     }
 
     @Composable
@@ -78,6 +77,13 @@ class Manatoki(app: Application) : Source() {
 
                 composable("recent") {
                     Recent(
+                        navigateToReader = { itemID -> navController.navigate("reader/$itemID") },
+                        navigateUp = { navController.navigateUp() }
+                    )
+                }
+
+                composable("search") {
+                    Search(
                         navigateToReader = { itemID -> navController.navigate("reader/$itemID") },
                         navigateUp = { navController.navigateUp() }
                     )

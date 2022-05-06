@@ -27,7 +27,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import xyz.quaver.pupil.sources.manatoki.networking.ManatokiHttpClient
-import xyz.quaver.pupil.sources.manatoki.networking.Thumbnail
+import xyz.quaver.pupil.sources.manatoki.networking.MangaThumbnail
 
 class RecentViewModel(
     private val client: ManatokiHttpClient
@@ -35,7 +35,7 @@ class RecentViewModel(
     var page by mutableStateOf(1)
 
     var error by mutableStateOf(false)
-    var result by mutableStateOf<List<Thumbnail>?>(null)
+    var result by mutableStateOf<List<MangaThumbnail>?>(null)
 
     private var loadJob: Job? = null
     fun load() {

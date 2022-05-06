@@ -85,7 +85,7 @@ class ManatokiHttpClientTest {
 
     @Test
     fun recent() = runTest {
-        val expectedRecent: List<Thumbnail> = Json.decodeFromString(
+        val expectedRecent: List<MangaThumbnail> = Json.decodeFromString(
             javaClass.getResource("/expected_recent.json")!!.readText()
         )
 
@@ -98,6 +98,23 @@ class ManatokiHttpClientTest {
         val recent = client.recent(0)
 
         assertEquals(expectedRecent, recent)
+    }
+
+    @Test
+    fun search() = runTest {
+        val expectedSearch: SearchResult = Json.decodeFromString(
+            javaClass.getResource("/expected_search.json")!!.readText()
+        )
+
+        val mockEngine = MockEngine { _ ->
+            respond(javaClass.getResource("/search.html")!!.readText())
+        }
+
+        val client = ManatokiHttpClient(mockEngine, database)
+
+        val result = client.search(SearchParameters())
+
+        assertEquals(expectedSearch, result)
     }
 
 }

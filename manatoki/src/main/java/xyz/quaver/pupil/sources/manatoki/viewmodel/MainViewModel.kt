@@ -31,7 +31,7 @@ import xyz.quaver.pupil.sources.manatoki.*
 import xyz.quaver.pupil.sources.manatoki.networking.MainData
 import xyz.quaver.pupil.sources.manatoki.networking.ManatokiHttpClient
 import xyz.quaver.pupil.sources.manatoki.networking.MangaListing
-import xyz.quaver.pupil.sources.manatoki.networking.Thumbnail
+import xyz.quaver.pupil.sources.manatoki.networking.MangaThumbnail
 
 class MainViewModel(
     private val client: ManatokiHttpClient,
@@ -45,7 +45,7 @@ class MainViewModel(
     var error by mutableStateOf(false)
         private set
 
-    var recentManga by mutableStateOf<List<Thumbnail>>(emptyList())
+    var recentManga by mutableStateOf<List<MangaThumbnail>>(emptyList())
         private set
 
     init {
@@ -55,8 +55,11 @@ class MainViewModel(
                 .getRecentManga()
                 .collectLatest { mangaList ->
                     recentManga = mangaList.map { manga ->
-                        val mangaListing = client.getItem(manga) as MangaListing
-                        Thumbnail(mangaListing.itemID, mangaListing.title, mangaListing.thumbnail)
+                        val listing = client.getItem(manga)
+
+                        check(listing is MangaListing)
+
+                        MangaThumbnail(listing.itemID, listing.title, listing.thumbnail)
                     }
                 }
         }

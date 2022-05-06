@@ -18,7 +18,6 @@
 
 package xyz.quaver.pupil.sources.manatoki.composable
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,31 +30,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import coil.compose.rememberImagePainter
-import xyz.quaver.pupil.sources.manatoki.networking.Thumbnail
+import coil.compose.AsyncImage
+import xyz.quaver.pupil.sources.manatoki.networking.MangaThumbnail
 
 @Composable
 fun Thumbnail(
-    thumbnail: Thumbnail,
+    mangaThumbnail: MangaThumbnail,
     modifier: Modifier = Modifier,
     onClick: (String) -> Unit = { }
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
         elevation = 8.dp,
-        modifier = modifier.clickable { onClick(thumbnail.itemID) }
+        modifier = modifier.clickable { onClick(mangaThumbnail.itemID) }
     ) {
         Box(
             modifier = Modifier.width(IntrinsicSize.Min)
         ) {
-            Image(
+            AsyncImage(
+                mangaThumbnail.thumbnail,
                 modifier = Modifier.fillMaxSize(),
-                painter = rememberImagePainter(thumbnail.thumbnail),
                 contentDescription = null
             )
 
             Text(
-                thumbnail.title,
+                mangaThumbnail.title,
                 color = Color.White,
                 modifier = Modifier
                     .align(Alignment.BottomStart)

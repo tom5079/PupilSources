@@ -21,7 +21,7 @@ import xyz.quaver.pupil.sources.manatoki.ManatokiDatabase
 import java.nio.ByteBuffer
 
 @Serializable
-data class Thumbnail(
+data class MangaThumbnail(
     val itemID: String,
     val title: String,
     val thumbnail: String
@@ -36,8 +36,8 @@ data class TopWeekly(
 
 @Serializable
 data class MainData(
-    val recentUpload: List<Thumbnail>,
-    val mangaList: List<Thumbnail>,
+    val recentUpload: List<MangaThumbnail>,
+    val mangaList: List<MangaThumbnail>,
     val topWeekly: List<TopWeekly>
 )
 
@@ -76,6 +76,122 @@ data class ReaderInfo(
     val prevItemID: String?,
     val nextItemID: String?
 ): Parcelable
+
+@Suppress("NonAsciiCharacters", "EnumEntryName")
+@Parcelize
+@Serializable
+data class SearchParameters(
+    // 발행
+    val publish: Publish? = null,
+    // 초성
+    val jaum: Jaum? = null,
+    // 장르
+    val tag: Set<Tag> = emptySet(),
+    // 정렬
+    val sst: Sort? = null,
+    // 오름/내림
+    val sod: Order = Order.내림차순,
+    // 제목
+    val stx: String? = null,
+    // 작가
+    val artist: String? = null,
+    val page: Int = 1
+): Parcelable {
+
+    init {
+        require(page > 0) { "Page must be a positive number" }
+    }
+
+    enum class Publish {
+        주간,
+        격주,
+        월간,
+        단편,
+        단행본,
+        완결
+    }
+
+    enum class Jaum {
+        ㄱ,
+        ㄴ,
+        ㄷ,
+        ㄹ,
+        ㅁ,
+        ㅂ,
+        ㅅ,
+        ㅇ,
+        ㅈ,
+        ㅊ,
+        ㅋ,
+        ㅌ,
+        ㅍ,
+        ㅎ,
+        `0-9`,
+        `a-z`
+    }
+
+    enum class Tag {
+        `17`,
+        BL,
+        SF,
+        TS,
+        개그,
+        게임,
+        도박,
+        드라마,
+        라노벨,
+        러브코미디,
+        먹방,
+        백합,
+        붕탁,
+        순정,
+        스릴러,
+        스포츠,
+        시대,
+        애니화,
+        액션,
+        음악,
+        이세계,
+        일상,
+        전생,
+        추리,
+        판타지,
+        학원,
+        호러
+    }
+
+    enum class Sort(val value: String) {
+        인기순("as_view"),
+        추천순("as_good"),
+        댓글순("as_comment"),
+        북마크순("as_bookmark")
+    }
+
+    enum class Order(val value: String) {
+        내림차순("desc"),
+        오름차순("asc")
+    }
+}
+
+@Parcelize
+@Serializable
+data class SearchResultEntry(
+    val itemID: String,
+    val title: String,
+    val thumbnail: String,
+    val artist: String,
+    val type: String,
+    val lastUpdate: String
+): Parcelable
+
+@Parcelize
+@Serializable
+data class SearchResult(
+    val result: List<SearchResultEntry>,
+    val availableArtists: List<String>,
+    val maxPage: Int
+): Parcelable
+
 
 class ManatokiHttpClient(
     engine: HttpClientEngine,
@@ -118,7 +234,7 @@ class ManatokiHttpClient(
                         .selectFirst(Evaluator.Tag("img"))!!
                         .attr("src")
 
-                    Thumbnail(itemID, title, thumbnail)
+                    MangaThumbnail(itemID, title, thumbnail)
                 }
 
             val mangaList = misoPostGallery[1]
@@ -128,7 +244,7 @@ class ManatokiHttpClient(
                     val title = entry.selectFirst("div.in-subject")!!.ownText()
                     val thumbnail = entry.selectFirst(Evaluator.Tag("img"))!!.attr("src")
 
-                    Thumbnail(itemID, title, thumbnail)
+                    MangaThumbnail(itemID, title, thumbnail)
                 }
 
             val misoPostList = doc.getElementsByClass("miso-post-list")
@@ -334,7 +450,7 @@ class ManatokiHttpClient(
         }.getOrNull()
     }
 
-    suspend fun recent(page: Int): List<Thumbnail>? = withContext(Dispatchers.IO) {
+    suspend fun recent(page: Int): List<MangaThumbnail>? = withContext(Dispatchers.IO) {
         runCatching {
             val doc = Jsoup.parse(
                 httpClient
@@ -348,8 +464,76 @@ class ManatokiHttpClient(
 
                 val thumbnail = elem.getElementsByTag("img").attr("src")
 
-                Thumbnail(itemID, title, thumbnail)
+                MangaThumbnail(itemID, title, thumbnail)
             }
         }.onFailure { it.printStackTrace() }.getOrNull()
     }
+
+    /**
+     * Search result
+     * Returns a triple of search results, available artists, and max page.
+     */
+    suspend fun search(parameters: SearchParameters): SearchResult? = withContext(Dispatchers.IO) {
+        runCatching {
+            with(parameters) {
+                val doc = Jsoup.parse(
+                    httpClient.get("$baseUrl/comic/p$page") {
+                        publish?.let { parameter("publish", publish.name) }
+                        jaum?.let { parameter("jaum", jaum.name) }
+                        if (tag.isNotEmpty()) parameter("tag", tag.joinToString(",") { it.name })
+                        sst?.let { parameter("sst", sst.name) }
+                        stx?.let { parameter("stx", stx) }
+                        artist?.let { parameter("artist", artist) }
+                    }.bodyAsText()
+                )
+
+                val maxPage = doc
+                    .select(".pagination a")
+                    .maxOf { it.text().toIntOrNull() ?: 1 }
+
+                val availableArtists = doc.select("select > option").mapNotNull { elem ->
+                    val value = elem.ownText()
+                    value.ifEmpty { null }
+                }
+
+                val result = doc.getElementsByClass("list-item").map { elem ->
+                    val itemID = elem
+                        .selectFirst(".img-item > a")!!
+                        .attr("href")
+                        .takeLastWhile { it != '/' }
+
+                    val title = elem
+                        .selectFirst(Evaluator.Class("title"))!!
+                        .text()
+
+                    val thumbnail = elem
+                        .selectFirst(Evaluator.Tag("img"))!!
+                        .attr("src")
+
+                    val artist = elem
+                        .selectFirst(Evaluator.Class("list-artist"))!!
+                        .text()
+
+                    val type = elem
+                        .selectFirst(Evaluator.Class("list-publish"))!!
+                        .text()
+
+                    val lastUpdate = elem
+                        .selectFirst(Evaluator.Class("list-date"))!!
+                        .text()
+
+                    SearchResultEntry(
+                        itemID,
+                        title,
+                        thumbnail,
+                        artist,
+                        type,
+                        lastUpdate
+                    )
+                }
+
+                SearchResult(result, availableArtists, maxPage)
+            }
+        }
+    }.getOrNull()
 }

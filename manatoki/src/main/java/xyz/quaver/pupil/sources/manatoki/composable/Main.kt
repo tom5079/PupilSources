@@ -62,7 +62,7 @@ import xyz.quaver.pupil.sources.manatoki.networking.MangaListing
 import xyz.quaver.pupil.sources.manatoki.networking.ReaderInfo
 import xyz.quaver.pupil.sources.manatoki.viewmodel.MainViewModel
 
-@ExperimentalMaterialApi
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun Main(
     navigateToReader: (String) -> Unit,
