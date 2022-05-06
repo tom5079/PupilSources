@@ -1,15 +1,36 @@
-package xyz.quaver.pupil.sources.manatoki.networking
+package xyz.quaver.pupil.sources.manatoki
 
+import android.content.Context
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
 import io.ktor.client.engine.mock.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
+import xyz.quaver.pupil.sources.manatoki.networking.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ManatokiHttpClientTest {
+
+    private lateinit var database: ManatokiDatabase
+
+    @Before
+    fun createDb() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        database = Room.inMemoryDatabaseBuilder(
+            context, ManatokiDatabase::class.java
+        ).build()
+    }
+
+    @After
+    fun closeDb() {
+        database.close()
+    }
 
     @Test
     fun main() = runTest {
@@ -21,7 +42,7 @@ class ManatokiHttpClientTest {
             respond(javaClass.getResource("/index.html")!!.readText())
         }
 
-        val client = ManatokiHttpClient(mockEngine)
+        val client = ManatokiHttpClient(mockEngine, database)
 
         val result = client.main()!!
 
@@ -38,7 +59,7 @@ class ManatokiHttpClientTest {
             respond(javaClass.getResource("/manga_listing.html")!!.readText())
         }
 
-        val client = ManatokiHttpClient(mockEngine)
+        val client = ManatokiHttpClient(mockEngine, database)
 
         val result = client.getItem(expectedMangaListing.itemID)
 
@@ -55,7 +76,7 @@ class ManatokiHttpClientTest {
             respond(javaClass.getResource("/reader_info.html")!!.readText())
         }
 
-        val client = ManatokiHttpClient(mockEngine)
+        val client = ManatokiHttpClient(mockEngine, database)
 
         val result = client.getItem(expectedReaderInfo.itemID)
 
@@ -72,7 +93,7 @@ class ManatokiHttpClientTest {
             respond(javaClass.getResource("/recent.html")!!.readText())
         }
 
-        val client = ManatokiHttpClient(mockEngine)
+        val client = ManatokiHttpClient(mockEngine, database)
 
         val recent = client.recent(0)
 

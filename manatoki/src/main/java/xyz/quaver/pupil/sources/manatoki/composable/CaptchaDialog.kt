@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
 import coil.compose.rememberImagePainter
 import kotlinx.coroutines.launch
 import org.kodein.di.compose.rememberInstance
@@ -68,8 +69,8 @@ fun CaptchaDialog() {
                             .height(100.dp)
                     ) {
                         if (captcha != null) {
-                            Image(
-                                painter = rememberImagePainter(captcha),
+                            AsyncImage(
+                                captcha,
                                 contentDescription = "captcha",
                                 modifier = Modifier
                                     .size(160.dp, 60.dp)

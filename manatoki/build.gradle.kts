@@ -166,13 +166,13 @@ dependencies {
 
     testImplementation(Test.JUNIT)
     testImplementation(Kotlin.COROUTINE_TEST)
-    testImplementation(KtorClient.TEST)
     androidTestImplementation(AndroidTest.JUNIT)
     androidTestImplementation(AndroidTest.RULES)
     androidTestImplementation(AndroidTest.RUNNER)
     androidTestImplementation(AndroidTest.ESPRESSO)
     androidTestImplementation(JetpackCompose.UI_TEST)
     androidTestImplementation(AndroidX.ROOM_TESTING)
+    androidTestImplementation(KtorClient.TEST)
     debugImplementation(JetpackCompose.UI_TEST_MANIFEST)
 }
 

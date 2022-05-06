@@ -17,6 +17,8 @@ import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.select.Evaluator
+import xyz.quaver.pupil.sources.manatoki.CookieDao
+import xyz.quaver.pupil.sources.manatoki.ManatokiDatabase
 import xyz.quaver.pupil.sources.manatoki.composable.Thumbnail
 import java.nio.ByteBuffer
 
@@ -77,11 +79,16 @@ data class ReaderInfo(
     val nextItemID: String?
 ): Parcelable
 
-class ManatokiHttpClient(engine: HttpClientEngine) {
+class ManatokiHttpClient(
+    engine: HttpClientEngine,
+    database: ManatokiDatabase
+) {
 
     val httpClient = HttpClient(engine) {
         install(ManatokiCaptcha)
-        install(HttpCookies)
+        install(HttpCookies) {
+            storage = ManatokiCookiesStorage(database)
+        }
         install(HttpCache)
     }
 

@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import coil.compose.rememberImagePainter
 import com.google.accompanist.flowlayout.FlowRow
 import io.ktor.client.*
@@ -98,10 +99,6 @@ fun DetailedSearchResult(
         value = result.thumbnail(client)
     }
 
-    val painter = rememberImagePainter(thumbnail) {
-        addHeader("Referer", "https://hitomi.la/")
-    }
-
     Card(
         modifier = Modifier
             .padding(8.dp, 4.dp)
@@ -111,15 +108,11 @@ fun DetailedSearchResult(
     ) {
         Column {
             Row {
-                Image(
-                    painter = painter,
+                AsyncImage(
+                    thumbnail,
                     contentDescription = null,
                     modifier = Modifier
                         .width(150.dp)
-                        .aspectRatio(
-                            with(painter.intrinsicSize) { if (this == Size.Unspecified) 1f else width / height },
-                            true
-                        )
                         .padding(0.dp, 0.dp, 8.dp, 0.dp)
                         .align(Alignment.CenterVertically),
                     contentScale = ContentScale.FillWidth

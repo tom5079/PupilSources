@@ -37,7 +37,7 @@ class Manatoki(app: Application) : Source() {
                 .build()
         }
 
-        bindSingleton { ManatokiHttpClient(OkHttp.create()) }
+        bindSingleton { ManatokiHttpClient(OkHttp.create(), instance()) }
         bindProvider { direct.instance<ManatokiHttpClient>().httpClient }
 
         bindProvider { MainViewModel(instance(), instance()) }

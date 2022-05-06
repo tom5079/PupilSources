@@ -19,8 +19,9 @@
 package xyz.quaver.pupil.sources.manatoki
 
 import androidx.room.*
+import io.ktor.http.*
+import io.ktor.util.date.*
 import kotlinx.coroutines.flow.Flow
-import java.sql.Timestamp
 
 @Entity
 data class Favorite(
@@ -40,6 +41,60 @@ data class History(
     val page: Int,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+data class ExtensionMap(
+    val extensions: Map<String, String?> = emptyMap()
+)
+
+@Entity(tableName = "cookie_entry", primaryKeys = ["url", "name"])
+data class CookieEntry(
+    val url: String,
+    val name: String,
+    val value: String,
+    val encoding: CookieEncoding = CookieEncoding.URI_ENCODING,
+    val maxAge: Int = 0,
+    val expires: GMTDate? = null,
+    val domain: String? = null,
+    val path: String? = null,
+    val secure: Boolean = false,
+    val httpOnly: Boolean = false,
+    val extensions: ExtensionMap = ExtensionMap()
+)
+
+class Converters {
+    @TypeConverter
+    fun dateFromTimestamp(timestamp: Long?): GMTDate? {
+        return timestamp?.let { GMTDate(timestamp) }
+    }
+
+    @TypeConverter
+    fun dateToTimestamp(date: GMTDate?): Long? {
+        return date?.timestamp
+    }
+
+    @TypeConverter
+    fun mapFromString(str: String?): ExtensionMap? {
+        return str?.let { ExtensionMap(buildMap {
+            if (str.isEmpty()) return@buildMap
+
+            str.split(';').forEach { extension ->
+                val key = extension.takeWhile { it != '=' }
+
+                var value: String? = extension.takeLastWhile { it != '=' }
+                if (value?.isEmpty() == true) value = null
+
+                put(key, value)
+            }
+        }) }
+    }
+
+    @TypeConverter
+    fun stringFromMap(map: ExtensionMap?): String? {
+        return map?.extensions?.entries?.joinToString(";") {
+            "${it.key}=${it.value.orEmpty()}"
+        }
+    }
+}
 
 @Dao
 interface FavoriteDao {
@@ -76,9 +131,51 @@ interface HistoryDao {
     suspend fun getAll(parent: String): List<String>
 }
 
-@Database(entities = [Favorite::class, Bookmark::class, History::class], version = 1, exportSchema = false)
+@Dao
+interface CookieDao {
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun addCookie(cookieEntry: CookieEntry)
+
+    @Query("""
+        SELECT * FROM cookie_entry
+        WHERE (domain = :host OR (NOT :hostIsIp AND :host LIKE '%.' || domain))
+        AND (path = '/' OR path = :requestPath OR path || '%' LIKE :requestPath)
+        AND NOT (secure AND NOT :isSecure)
+    """)
+    suspend fun get(
+        host: String,
+        hostIsIp: Boolean,
+        requestPath: String,
+        isSecure: Boolean
+    ): List<CookieEntry>
+
+    @Query("SELECT min(expires) FROM cookie_entry")
+    suspend fun oldestCookie(): Long?
+
+    @Query("DELETE FROM cookie_entry WHERE expires < :timestamp")
+    suspend fun cleanup(timestamp: Long)
+
+    @Query("""
+        DELETE FROM cookie_entry
+        WHERE name = :name
+        AND (domain = :host OR (NOT :hostIsIp AND :host LIKE '%.' || domain))
+        AND (path = '/' OR path = :requestPath OR path || '%' LIKE :requestPath)
+        AND NOT (secure AND NOT :isSecure)
+    """)
+    suspend fun removeDuplicates(
+        name: String,
+        host: String,
+        hostIsIp: Boolean,
+        requestPath: String,
+        isSecure: Boolean
+    )
+}
+
+@Database(entities = [Favorite::class, Bookmark::class, History::class, CookieEntry::class], version = 1)
+@TypeConverters(Converters::class)
 abstract class ManatokiDatabase: RoomDatabase() {
     abstract fun favoriteDao(): FavoriteDao
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun historyDao(): HistoryDao
+    abstract fun cookieDao(): CookieDao
 }
