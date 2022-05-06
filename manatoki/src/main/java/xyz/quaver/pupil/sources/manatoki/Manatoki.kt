@@ -25,6 +25,7 @@ import xyz.quaver.pupil.sources.manatoki.networking.ManatokiHttpClient
 import xyz.quaver.pupil.sources.manatoki.viewmodel.MainViewModel
 import xyz.quaver.pupil.sources.manatoki.viewmodel.RecentViewModel
 import xyz.quaver.pupil.sources.manatoki.viewmodel.SearchViewModel
+import java.io.File
 
 class Manatoki(app: Application) : Source() {
     private val resourceContext = app.createPackageContext(packageName, 0)
@@ -38,7 +39,13 @@ class Manatoki(app: Application) : Source() {
         bindSingleton { ManatokiHttpClient(OkHttp.create(), instance()) }
         bindProvider { direct.instance<ManatokiHttpClient>().httpClient }
 
-        bindProvider { MainViewModel(instance(), instance()) }
+        bindProvider {
+            MainViewModel(
+                client = instance(),
+                database = instance(),
+                cacheDirectory = File(app.cacheDir, "manatoki_thumbnail_cache")
+                    .also { it.mkdir() })
+        }
         bindProvider { ReaderBaseViewModel(di) }
         bindProvider { RecentViewModel(instance()) }
         bindProvider { SearchViewModel(instance()) }

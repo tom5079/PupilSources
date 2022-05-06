@@ -124,7 +124,7 @@ interface HistoryDao {
     @Query("DELETE FROM history WHERE itemID = :itemID")
     suspend fun delete(itemID: String)
 
-    @Query("SELECT parent FROM (SELECT parent, max(timestamp) as t FROM history GROUP BY parent) ORDER BY t DESC")
+    @Query("SELECT parent FROM (SELECT parent, max(timestamp) as t FROM history GROUP BY parent) ORDER BY t DESC LIMIT 10")
     fun getRecentManga(): Flow<List<String>>
 
     @Query("SELECT itemID FROM history WHERE parent = :parent ORDER BY timestamp DESC")

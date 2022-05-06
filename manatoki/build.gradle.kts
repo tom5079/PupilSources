@@ -16,7 +16,7 @@ object Constants {
     const val applicationIdSuffix = "manatoki"
     const val sources = "manatoki.net:.Manatoki"
     const val versionCode = 1
-    const val versionName = "0.0.1-alpha05"
+    const val versionName = "0.0.1-alpha06"
 }
 
 android {
@@ -161,8 +161,8 @@ dependencies {
     implementation(Kodein.LOG)
 
     implementation(Misc.PROTOBUF)
-
     implementation(Misc.JSOUP)
+    implementation(Misc.DISK_LRU_CACHE)
 
     testImplementation(Test.JUNIT)
     testImplementation(Kotlin.COROUTINE_TEST)

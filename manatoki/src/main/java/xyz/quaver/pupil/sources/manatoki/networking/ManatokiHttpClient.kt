@@ -204,6 +204,7 @@ class ManatokiHttpClient(
             storage = ManatokiCookiesStorage(database)
         }
         install(HttpCache)
+        install(ManatokiRateLimiter)
     }
 
     private val baseUrl = "https://manatoki130.net"
