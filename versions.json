@@ -3,5 +3,10 @@
         "projectName": "hitomi",
         "name": "hitomi.la",
         "version": "0.0.1-alpha16"
+    },
+    "manatoki.net": {
+        "projectName": "manatoki",
+        "name": "manatoki.net",
+        "version": "0.0.1-alpha03"
     }
 }
