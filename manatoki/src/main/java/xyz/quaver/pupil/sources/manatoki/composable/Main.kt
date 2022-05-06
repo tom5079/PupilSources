@@ -197,15 +197,13 @@ fun Main(
                     },
                     actions = {
                         withLocalResource {
-                            Image(
-                                painter = painterResource(id = R.mipmap.ic_launcher),
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        IconButton(onClick = navigateToSettings) {
-                            Icon(Icons.Default.Settings, contentDescription = null)
+                            IconButton(onClick = navigateToSettings) {
+                                Image(
+                                    painter = painterResource(id = R.mipmap.ic_launcher),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     },
                     contentPadding = rememberInsetsPaddingValues(
