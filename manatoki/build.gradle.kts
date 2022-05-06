@@ -16,7 +16,7 @@ object Constants {
     const val applicationIdSuffix = "manatoki"
     const val sources = "manatoki.net:.Manatoki"
     const val versionCode = 1
-    const val versionName = "0.0.1-alpha03"
+    const val versionName = "0.0.1-alpha04"
 }
 
 android {
@@ -24,7 +24,7 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = File("/tmp/keystore.jks")
+            storeFile = File(System.getenv("SIGNING_STORE_FILE"))
             storePassword = System.getenv("SIGNING_STORE_PASSWORD")
             keyAlias = System.getenv("SIGNING_KEY_ALIAS")
             keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
