@@ -53,7 +53,7 @@ jobs:
       run: |
           git config --global user.name 'Build bot'
           git config --global user.email ${{ secrets.EMAIL }}
-          git fetch
+          git pull
           git add versions.json
           git commit -m "Version update"
           git checkout gh-pages
