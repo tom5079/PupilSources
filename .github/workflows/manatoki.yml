@@ -31,7 +31,7 @@ jobs:
     - name: Decode Keystore
       uses: timheuer/base64-to-file@v1.1
       with:
-        fileName: ${{ secrets.SIGNING_STORE_FILE }}
+        fileName: 'keystore.jks'
         fileDir: '/tmp/'
         encodedString: ${{ secrets.KEYSTORE }}
     
@@ -41,7 +41,7 @@ jobs:
         SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-        SIGNING_STORE_FILE: ${{ secrets.SIGNING_STORE_FILE }}
+        SIGNING_STORE_FILE: '/tmp/keystore.jks'
     
     - name: Export tag
       id: tag
