@@ -78,6 +78,7 @@ android {
     sourceSets {
         getByName("androidTest").assets.srcDir("$projectDir/schemas")
     }
+    namespace = "xyz.quaver.pupil.sources"
 }
 
 tasks.register("generateApkMetadata") {

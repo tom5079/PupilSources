@@ -42,6 +42,7 @@ android {
         jvmTarget = "1.8"
         freeCompilerArgs = freeCompilerArgs + "-Xopt-in=kotlin.RequiresOptIn"
     }
+    namespace = "xyz.quaver.pupil.sources.core"
 }
 
 dependencies {

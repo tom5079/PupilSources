@@ -35,6 +35,7 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = Versions.JETPACK_COMPOSE
     }
+    namespace = "xyz.quaver.pupil.sources.base"
 }
 
 dependencies {
