@@ -18,7 +18,6 @@
 
 package xyz.quaver.pupil.sources.manatoki.viewmodel
 
-import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -30,28 +29,23 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
-import okhttp3.internal.closeQuietly
-import xyz.quaver.pupil.sources.manatoki.*
-import xyz.quaver.pupil.sources.manatoki.networking.MainData
-import xyz.quaver.pupil.sources.manatoki.networking.ManatokiHttpClient
-import xyz.quaver.pupil.sources.manatoki.networking.MangaListing
-import xyz.quaver.pupil.sources.manatoki.networking.MangaThumbnail
+import xyz.quaver.pupil.sources.manatoki.HistoryDao
+import xyz.quaver.pupil.sources.manatoki.networking.*
 import java.io.File
 
 @OptIn(ExperimentalSerializationApi::class)
 class MainViewModel(
     private val client: ManatokiHttpClient,
-    private val database: ManatokiDatabase,
+    private val historyDao: HistoryDao,
     private val cacheDirectory: File
 ) : ViewModel() {
     private var loadJob: Job? = null
+    private var openJob: Job? = null
 
     var mainData by mutableStateOf<MainData?>(null)
         private set
@@ -61,14 +55,20 @@ class MainViewModel(
 
     val recentManga = mutableStateListOf<MangaThumbnail>()
 
+    var mangaListing: MangaListing? by mutableStateOf(null)
+        private set
+    var recentItem: String? by mutableStateOf(null)
+        private set
+    var readerID: String? by mutableStateOf(null)
+        private set
+
     private val diskLruCache by lazy {
         DiskLruCache.open(cacheDirectory, 1, 1, 100000)
     }
 
     init {
         viewModelScope.launch {
-            database
-                .historyDao()
+            historyDao
                 .getRecentManga()
                 .distinctUntilChanged()
                 .collectLatest { mangaList ->
@@ -102,8 +102,36 @@ class MainViewModel(
         viewModelScope.launch {
             loadJob?.cancelAndJoin()
             loadJob = launch {
-
                 mainData = client.main()
+            }
+        }
+    }
+
+    private fun onListing(item: MangaListing) {
+        mangaListing = item
+
+        viewModelScope.launch {
+            recentItem = historyDao.getAll(item.itemID).firstOrNull()
+        }
+    }
+
+    private fun onReader(item: ReaderInfo) {
+        readerID = item.itemID
+    }
+
+    fun openItem(itemID: String) {
+        viewModelScope.launch {
+            openJob?.cancelAndJoin()
+
+            mangaListing = null
+            readerID = null
+
+            openJob = launch {
+                when (val item = client.getItem(itemID)) {
+                    is MangaListing -> onListing(item)
+                    is ReaderInfo -> onReader(item)
+                    else -> error("client.getItem() did not return MangaListing nor ReaderInfo")
+                }
             }
         }
     }

@@ -21,8 +21,10 @@ package xyz.quaver.pupil.sources.manatoki.composable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -32,21 +34,23 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowRight
 import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import coil.compose.rememberImagePainter
+import coil.compose.rememberAsyncImagePainter
 import com.google.accompanist.flowlayout.FlowRow
 import com.google.accompanist.insets.LocalWindowInsets
 import com.google.accompanist.insets.navigationBarsPadding
 import com.google.accompanist.insets.rememberInsetsPaddingValues
+import kotlinx.coroutines.delay
 import xyz.quaver.pupil.sources.manatoki.networking.MangaListing
 
 private val FabSpacing = 8.dp
@@ -100,43 +104,132 @@ fun MangaListingBottomSheetLayout(
     }
 }
 
-@ExperimentalMaterialApi
+@Composable
+fun rememberMangaListingBottomSheetState(
+    listing: MangaListing?,
+    currentItem: String? = null,
+    actionItem: MangaListingBottomSheetActionItem? = null
+): MangaListingBottomSheetState {
+    val listState = rememberLazyListState()
+    val navigationBarsPadding = with (LocalDensity.current) {
+        rememberInsetsPaddingValues(LocalWindowInsets.current.navigationBars)
+            .calculateBottomPadding()
+            .toPx()
+    }
+
+    return remember(listing) {
+        MangaListingBottomSheetState(listing, listState, navigationBarsPadding).also {
+            if (currentItem != null) it.currentItem = currentItem
+            if (actionItem != null) it.actionItem = actionItem
+        }
+    }
+}
+
+enum class MangaListingBottomSheetAction {
+    FIRST, RECENT, NEXT
+}
+
+data class MangaListingBottomSheetActionItem(
+    val action: MangaListingBottomSheetAction = MangaListingBottomSheetAction.FIRST,
+    val item: String? = null
+)
+
+class MangaListingBottomSheetState(
+    val listing: MangaListing?,
+    val listState: LazyListState,
+    private val navigationBarsPadding: Float
+) {
+    val rippleInteractionSource = mutableStateMapOf<String, MutableInteractionSource>()
+
+    var listSize: Size? by mutableStateOf(null)
+
+    var actionItem by mutableStateOf(MangaListingBottomSheetActionItem())
+    var currentItem by mutableStateOf("")
+
+    suspend fun highlightItem(itemID: String) {
+        listing ?: return
+
+        // Prepare InteractionSource
+        val interactionSource = rippleInteractionSource.getOrPut(itemID) {
+            MutableInteractionSource()
+        }
+
+        // Wait for the list to fully populate
+        while (listState.layoutInfo.totalItemsCount != listing.entries.size) {
+            delay(100)
+        }
+
+        // Rough scroll to the item
+        val targetIndex = listing.entries.indexOfFirst { it.itemID == itemID }
+
+        listState.scrollToItem(targetIndex)
+
+        // align the item to the top of the list
+        val listSize = listSize ?: return
+
+        val targetItem = listState.layoutInfo.visibleItemsInfo.first {
+            it.key == itemID
+        }
+
+        if (targetItem.offset == 0)
+            listState.animateScrollBy(
+                -(listSize.height - navigationBarsPadding - targetItem.size)
+            )
+
+        // Wait for the animation to finish
+        delay(200)
+
+        // Show ripple effect
+        with (interactionSource) {
+            val interaction = PressInteraction.Press(Offset(
+                listSize.width / 2f,
+                targetItem.size / 2f
+            ))
+
+            emit(interaction)
+            emit(PressInteraction.Release(interaction))
+        }
+    }
+}
+
 @Composable
 fun MangaListingBottomSheet(
-    mangaListing: MangaListing? = null,
-    currentItemID: String? = null,
-    onListSize: (Size) -> Unit = { },
-    listState: LazyListState = rememberLazyListState(),
-    rippleInteractionSource: Map<String, MutableInteractionSource> = emptyMap(),
-    recentItem: String? = null,
-    nextItem: String? = null,
+    state: MangaListingBottomSheetState,
     onOpenItem: (String) -> Unit = { },
 ) {
     Box(
         modifier = Modifier.fillMaxWidth()
     ) {
-        if (mangaListing == null)
+        if (state.listing == null)
             CircularProgressIndicator(
                 Modifier
                     .navigationBarsPadding()
                     .padding(16.dp)
-                    .align(Alignment.Center))
-        else
+                    .align(Alignment.Center)
+            )
+        else {
+            val isItemAvailable = state.listing.entries.any { it.itemID == state.actionItem.item }
+
             MangaListingBottomSheetLayout(
                 floatingActionButton = {
                     ExtendedFloatingActionButton(
-                        text = { Text(
-                            when {
-                                mangaListing.entries.any { it.itemID == recentItem } -> "이어보기"
-                                mangaListing.entries.any { it.itemID == nextItem } -> "다음화보기"
-                                else -> "첫화보기"
-                            }
-                        ) },
+                        text = {
+                            Text(
+                                when {
+                                    state.actionItem.action == MangaListingBottomSheetAction.RECENT && isItemAvailable -> "이어보기"
+                                    state.actionItem.action == MangaListingBottomSheetAction.NEXT && isItemAvailable -> "다음화보기"
+                                    else -> "첫화보기"
+                                }
+                            )
+                        },
                         onClick = {
                             when {
-                                mangaListing.entries.any { it.itemID == recentItem } -> onOpenItem(recentItem!!)
-                                mangaListing.entries.any { it.itemID == nextItem } -> onOpenItem(nextItem!!)
-                                else -> mangaListing.entries.lastOrNull()?.let { onOpenItem(it.itemID) }
+                                state.actionItem.action == MangaListingBottomSheetAction.RECENT && isItemAvailable ->
+                                    onOpenItem(state.actionItem.item!!)
+                                state.actionItem.action == MangaListingBottomSheetAction.NEXT && isItemAvailable ->
+                                    onOpenItem(state.actionItem.item!!)
+                                else -> state.listing.entries.lastOrNull()
+                                    ?.let { onOpenItem(it.itemID) }
                             }
                         }
                     )
@@ -149,7 +242,7 @@ fun MangaListingBottomSheet(
                             .padding(0.dp, 0.dp, 0.dp, 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val painter = rememberImagePainter(mangaListing.thumbnail)
+                        val painter = rememberAsyncImagePainter(state.listing.thumbnail)
 
                         Box(Modifier.fillMaxHeight()) {
                             Image(
@@ -157,7 +250,8 @@ fun MangaListingBottomSheet(
                                     .width(150.dp)
                                     .aspectRatio(
                                         with(painter.intrinsicSize) { if (this == Size.Unspecified) 1f else width / height }
-                                    ).align(Alignment.Center),
+                                    )
+                                    .align(Alignment.Center),
                                 painter = painter,
                                 contentDescription = null
                             )
@@ -171,13 +265,13 @@ fun MangaListingBottomSheet(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                mangaListing.title,
+                                state.listing.title,
                                 style = MaterialTheme.typography.h5,
                                 modifier = Modifier.weight(1f)
                             )
 
                             CompositionLocalProvider(LocalContentAlpha provides 0.7f) {
-                                Text("작가: ${mangaListing.author}")
+                                Text("작가: ${state.listing.author}")
 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("분류: ")
@@ -187,7 +281,7 @@ fun MangaListingBottomSheet(
                                             modifier = Modifier.weight(1f),
                                             mainAxisSpacing = 8.dp
                                         ) {
-                                            mangaListing.tags.forEach {
+                                            state.listing.tags.forEach {
                                                 Card(
                                                     elevation = 4.dp,
                                                     backgroundColor = Color.White
@@ -204,7 +298,7 @@ fun MangaListingBottomSheet(
                                     }
                                 }
 
-                                Text("발행구분: ${mangaListing.type}")
+                                Text("발행구분: ${state.listing.type}")
                             }
                         }
                     }
@@ -214,27 +308,27 @@ fun MangaListingBottomSheet(
                         modifier = Modifier
                             .fillMaxSize()
                             .onGloballyPositioned {
-                                onListSize(it.size.toSize())
+                                state.listSize = it.size.toSize()
                             },
-                        state = listState,
+                        state = state.listState,
                         contentPadding = rememberInsetsPaddingValues(LocalWindowInsets.current.navigationBars)
                     ) {
-                        items(mangaListing.entries, key = { it.itemID }) { entry ->
+                        items(state.listing.entries, key = { it.itemID }) { entry ->
                             Row(
                                 modifier = Modifier
                                     .clickable {
                                         onOpenItem(entry.itemID)
                                     }
-                                    .run {
-                                        rippleInteractionSource[entry.itemID]?.let {
-                                            indication(it, rememberRipple())
-                                        } ?: this
-                                    }
+                                    .then(
+                                        state.rippleInteractionSource[entry.itemID]?.let {
+                                            Modifier.indication(it, rememberRipple())
+                                        } ?: Modifier
+                                    )
                                     .padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                if (entry.itemID == currentItemID)
+                                if (entry.itemID == state.currentItem)
                                     Icon(
                                         Icons.Default.ArrowRight,
                                         contentDescription = null,
@@ -254,5 +348,6 @@ fun MangaListingBottomSheet(
                     }
                 }
             )
+        }
     }
 }

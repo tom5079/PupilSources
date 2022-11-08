@@ -9,10 +9,19 @@ plugins {
 }
 
 group = "xyz.quaver.pupil.sources"
-version = "0.0.1-alpha01-DEV26"
+version = "0.0.1-alpha01-DEV29"
 
 android {
     compileSdk = AndroidConfig.COMPILE_SDK
+
+    signingConfigs {
+        create("release") {
+            storeFile = File(System.getenv("SIGNING_STORE_FILE"))
+            storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+            keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+            keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+        }
+    }
 
     defaultConfig {
         minSdk = AndroidConfig.MIN_SDK

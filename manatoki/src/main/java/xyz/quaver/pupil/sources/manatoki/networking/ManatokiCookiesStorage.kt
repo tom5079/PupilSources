@@ -6,15 +6,14 @@ import io.ktor.util.*
 import io.ktor.util.date.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import xyz.quaver.pupil.sources.manatoki.CookieDao
 import xyz.quaver.pupil.sources.manatoki.CookieEntry
 import xyz.quaver.pupil.sources.manatoki.ExtensionMap
 import xyz.quaver.pupil.sources.manatoki.ManatokiDatabase
 
 class ManatokiCookiesStorage(
-    database: ManatokiDatabase
+    private val cookieDao: CookieDao
 ) : CookiesStorage {
-    private val cookieDao = database.cookieDao()
-
     private val mutex = Mutex()
     private var oldestCookie: Long? = null
 

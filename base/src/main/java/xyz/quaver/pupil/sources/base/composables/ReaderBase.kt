@@ -18,13 +18,11 @@
 
 package xyz.quaver.pupil.sources.base.composables
 
-import android.app.Activity
-import android.app.Application
-import android.net.Uri
+import android.util.Log
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.material.*
@@ -35,65 +33,44 @@ import androidx.compose.material.icons.materialIcon
 import androidx.compose.material.icons.materialPath
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.datastore.core.DataStore
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.google.accompanist.insets.LocalWindowInsets
 import com.google.accompanist.insets.rememberInsetsPaddingValues
-import io.ktor.client.*
-import io.ktor.client.request.*
-import io.ktor.http.*
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import org.kodein.di.DI
-import org.kodein.di.DIAware
-import org.kodein.di.android.closestDI
 import org.kodein.di.compose.rememberInstance
-import org.kodein.di.instance
-import org.kodein.log.LoggerFactory
-import org.kodein.log.newLogger
-import xyz.quaver.graphics.subsampledimage.ImageSource
 import xyz.quaver.graphics.subsampledimage.SubSampledImage
-import xyz.quaver.graphics.subsampledimage.SubSampledImageState
+import xyz.quaver.graphics.subsampledimage.doubleClickCycleZoom
 import xyz.quaver.graphics.subsampledimage.rememberSubSampledImageState
 import xyz.quaver.io.FileX
 import xyz.quaver.pupil.proto.ReaderOptions
 import xyz.quaver.pupil.proto.Settings
-import xyz.quaver.pupil.sources.base.util.FileXImageSource
-import xyz.quaver.pupil.sources.core.NetworkCache
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.abs
+import xyz.quaver.pupil.sources.base.util.doubleClickCycleZoom
+import xyz.quaver.pupil.sources.base.util.rememberFileXImageSource
+import xyz.quaver.pupil.sources.core.util.LocalActivity
+import java.io.Reader
 import kotlin.math.sign
 
 private var _singleImage: ImageVector? = null
@@ -174,96 +151,15 @@ val DoubleImage: ImageVector
         return _doubleImage!!
     }
 
-open class ReaderBaseViewModel(override val di: DI) : ViewModel(), DIAware {
-    private val logger = newLogger(LoggerFactory.default)
-
-    private val cache: NetworkCache by instance()
-    private val client: HttpClient by instance()
-
+open class ReaderBaseViewModel : ViewModel() {
     var fullscreen by mutableStateOf(false)
 
     var error by mutableStateOf(false)
 
-    var imageCount by mutableStateOf(0)
-
     open var currentIndex by mutableStateOf(0)
 
-    val imageList = mutableStateListOf<Uri?>()
-    val progressList = mutableStateListOf<Float>()
-
-    private val progressCollectJobs = ConcurrentHashMap<Int, Job>()
-
-    private val totalProgressMutex = Mutex()
-    var totalProgress by mutableStateOf(0)
-        private set
-
-    private var urls: List<String> = emptyList()
-
-    var loadJob: Job? = null
-    fun load(urls: List<String>, headerBuilder: HeadersBuilder.() -> Unit = { }) {
-        this.urls = urls
-        viewModelScope.launch {
-            loadJob?.cancelAndJoin()
-            progressList.clear()
-            imageList.clear()
-            totalProgressMutex.withLock {
-                totalProgress = 0
-            }
-
-            imageCount = urls.size
-
-            progressList.addAll(List(imageCount) { 0f })
-            imageList.addAll(List(imageCount) { null })
-            totalProgressMutex.withLock {
-                totalProgress = 0
-            }
-
-            loadJob = launch {
-                urls.forEachIndexed { index, url ->
-                    when (val scheme = url.takeWhile { it != ':' }) {
-                        "http", "https" -> {
-                            val (flow, file) = cache.run { client.load {
-                                url(url)
-                                headers(headerBuilder)
-                            } }
-
-                            imageList[index] = Uri.fromFile(file)
-                            progressCollectJobs[index] = launch {
-                                flow.takeWhile { it.isFinite() }.collect {
-                                    progressList[index] = it
-                                }
-
-                                progressList[index] = flow.value
-                                totalProgressMutex.withLock {
-                                    totalProgress++
-                                }
-                            }
-                        }
-                        "content" -> {
-                            imageList[index] = Uri.parse(url)
-                            progressList[index] = Float.POSITIVE_INFINITY
-                            totalProgressMutex.withLock {
-                                totalProgress++
-                            }
-                        }
-                        else -> {
-                            logger.warning(IllegalArgumentException("Expected URL scheme 'http(s)' or 'content' but was '$scheme'"))
-                            progressList[index] = Float.NEGATIVE_INFINITY
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fun error(index: Int) {
-        progressList[index] = Float.NEGATIVE_INFINITY
-    }
-
-    override fun onCleared() {
-        cache.free(urls)
-        cache.cleanup()
-    }
+    var items by mutableStateOf<List<ReaderItem>>(emptyList())
+        protected set
 }
 
 val ReaderOptions.Orientation.isVertical: Boolean
@@ -483,149 +379,134 @@ fun BoxScope.ReaderLazyList(
             )
     }
 }
-
-data class ReaderItemData(
-    val index: Int,
-    val size: Size?,
-    val imageSource: ImageSource?
+/**
+ * @param image Image file to display. If null, show progress.
+ * @param progress value between 0.0 and 1.0.
+ */
+data class ReaderItem(
+    val image: FileX?,
+    val progress: StateFlow<Float>
 )
 
-@ExperimentalFoundationApi
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ReaderItem(
-    model: ReaderBaseViewModel,
-    readerOptions: ReaderOptions,
-    listSize: Size,
-    images: List<ReaderItemData>,
-    onTap: () -> Unit = { }
+/**
+ * Shows Image or Progress bar.
+ * if image is null and progress is not between 0 and 1, show broken image icon
+ * @param index one-based index of the image for progress bar
+ */
+fun ReaderElement(
+    image: FileX?,
+    progress: Float,
+    index: Int,
+    options: ReaderOptions,
+    modifier: Modifier = Modifier,
+    fullscreen: Boolean,
+    onRequestFullscreen: () -> Unit = { },
+    onTap: () -> Unit = { },
+    onError: () -> Unit = { }
 ) {
-    val (widthDp, heightDp) = LocalDensity.current.run { listSize.width.toDp() to listSize.height.toDp() }
-
-    Row(
-        modifier = when {
-            readerOptions.padding -> Modifier.size(widthDp, heightDp)
-            readerOptions.orientation.isVertical -> Modifier.fillMaxWidth()
-            else -> Modifier.fillMaxHeight()
-        },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        images.let { if (readerOptions.orientation.isReverse) it.reversed() else it }.forEach { (index, imageSize, imageSource) ->
-            val state = rememberSubSampledImageState().apply {
-                isGestureEnabled = true
-            }
-
-            val modifier = when {
-                imageSize == null -> Modifier
-                    .weight(1f)
-                    .height(heightDp)
-                readerOptions.padding -> Modifier
-                    .fillMaxHeight()
-                    .widthIn(0.dp, widthDp / images.size)
-                    .aspectRatio(imageSize.width / imageSize.height)
-                readerOptions.orientation.isVertical -> Modifier
-                    .weight(1f)
-                    .aspectRatio(imageSize.width / imageSize.height)
-                else -> Modifier.aspectRatio(imageSize.width/imageSize.height)
-            }
-
-
-            Box(
-                modifier,
-                contentAlignment = Alignment.Center
-            ) {
-                val progress = model.progressList.getOrNull(index) ?: 0f
-
-                if (progress == Float.NEGATIVE_INFINITY)
-                    Icon(Icons.Filled.BrokenImage, null)
-                else if (progress.isFinite())
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        LinearProgressIndicator(progress)
-                        Text((index + 1).toString())
-                    }
-                else if (progress == Float.POSITIVE_INFINITY) {
-                    SubSampledImage(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .run {
-                                if (model.fullscreen)
-                                    doubleClickCycleZoom(state, 2f, onTap = onTap)
-                                else
-                                    combinedClickable(
-                                        onLongClick = {
-
-                                        }
-                                    ) {
-                                        model.fullscreen = true
-                                    }
-                            },
-                        imageSource = imageSource,
-                        state = state,
-                        onError = {
-                            model.error(index)
-                        }
-                    )
+    Box(modifier, contentAlignment = Alignment.Center) {
+        when {
+            progress in 0f .. 1f -> {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    LinearProgressIndicator(progress)
+                    Text(index.toString())
                 }
             }
+            image != null -> {
+                val state = rememberSubSampledImageState().apply {
+                    isGestureEnabled = true
+                }
+
+                val imageSize = state.imageSize
+
+                val imageModifier = when {
+                    options.padding -> Modifier
+                        .fillMaxSize()
+                    imageSize == null -> Modifier
+                        .fillMaxSize()
+                        .aspectRatio(1f)
+                    options.orientation.isVertical -> Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(imageSize.width / imageSize.height)
+                    else -> Modifier
+                        .fillMaxHeight()
+                        .aspectRatio(imageSize.width / imageSize.height)
+                }
+
+                SubSampledImage(
+                    imageModifier.then(
+                        if (fullscreen)
+                            Modifier.doubleClickCycleZoom(state, 2f) { onTap() }
+                        else
+                            Modifier.combinedClickable(
+                                onLongClick = { /* TODO */ },
+                                onClick = onRequestFullscreen
+                            )
+                    ),
+                    imageSource = rememberFileXImageSource(image),
+                    state = state,
+                    onError = { onError() }
+                )
+            }
+            else -> {
+                Icon(Icons.Default.BrokenImage, contentDescription = null)
+            }
         }
     }
 }
 
-@ExperimentalFoundationApi
 fun LazyListScope.ReaderLazyListContent(
-    model: ReaderBaseViewModel,
-    listSize: Size,
-    imageSources: List<ImageSource?>,
-    imageSizes: List<Size?>,
-    readerOptions: ReaderOptions,
-    onTap: () -> Unit = { }
+    items: List<ReaderItem>,
+    options: ReaderOptions,
+    listSize: DpSize,
+    fullscreen: Boolean,
+    onRequestFullscreen: () -> Unit,
+    onNextImage: () -> Unit
 ) {
-    when (readerOptions.layout) {
-        ReaderOptions.Layout.SINGLE_PAGE ->
-            itemsIndexed(imageSources) { index, source ->
-                ReaderItem(model, readerOptions, listSize, listOf(ReaderItemData(index, imageSizes[index], source)))
-            }
-        ReaderOptions.Layout.DOUBLE_PAGE ->
-            itemsIndexed(imageSources.chunked(2), key = { i, _ -> i*2 }) { chunkIndex, sourceList ->
-                ReaderItem(model, readerOptions, listSize, sourceList.mapIndexed { i, it ->
-                    val index = chunkIndex*2+i
-                    ReaderItemData(index, imageSizes[index], it)
-                }, onTap)
-            }
-        ReaderOptions.Layout.AUTO -> {
-            val images = mutableListOf<List<Int>>()
+    val containerModifier = when {
+        options.padding -> Modifier
+            .size(listSize)
 
-            var i = 0
-            while (i < imageSizes.size) {
-                val list = mutableListOf(i)
+        options.orientation.isVertical -> Modifier
+            .fillMaxWidth()
+            .heightIn(max = listSize.height)
 
-                if (
-                    imageSizes[i] != null &&
-                    imageSizes.getOrNull(i+1) != null &&
-                    listSize != Size.Zero &&
-                    imageSizes[i]!!.width*listSize.height/imageSizes[i]!!.height +
-                    imageSizes[i+1]!!.width*listSize.height/imageSizes[i+1]!!.height < listSize.width
-                ) list.add(++i)
+        else -> Modifier
+            .fillMaxHeight()
+            .widthIn(max = listSize.width)
+    }
 
-                images.add(list)
-                i++
-            }
+    when (options.layout!!) {
+        ReaderOptions.Layout.SINGLE_PAGE -> {
+            itemsIndexed(items) { index, item ->
+                val progress by item.progress.collectAsState(0f)
 
-            items(images, key = { it.first() }) { images ->
-                ReaderItem(model, readerOptions, listSize, images.map { ReaderItemData(it, imageSizes[it], imageSources[it]) }, onTap)
+                ReaderElement(
+                    item.image,
+                    progress,
+                    index+1,
+                    options,
+                    containerModifier,
+                    fullscreen,
+                    onRequestFullscreen,
+                    onNextImage
+                )
             }
         }
-        else -> itemsIndexed(imageSources) { index, source ->
-            ReaderItem(model, readerOptions, listSize, listOf(ReaderItemData(index, imageSizes[index], source)), onTap)
+        ReaderOptions.Layout.DOUBLE_PAGE -> {
+
+        }
+        ReaderOptions.Layout.AUTO -> {
+
         }
     }
 }
 
-@ExperimentalComposeUiApi
-@ExperimentalMaterialApi
-@ExperimentalFoundationApi
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun ReaderBase(
     modifier: Modifier = Modifier,
@@ -633,7 +514,7 @@ fun ReaderBase(
     listState: LazyListState = rememberLazyListState(),
     onScroll: (direction: Float) -> Unit = { }
 ) {
-    val activity = LocalContext.current as Activity
+    val activity = LocalActivity.current
     val haptic = LocalHapticFeedback.current
 
     val settingsDataStore: DataStore<Settings> by rememberInstance()
@@ -654,16 +535,16 @@ fun ReaderBase(
     }
 
     LaunchedEffect(model.fullscreen) {
-        activity.window?.let { window ->
-            ViewCompat.getWindowInsetsController(window.decorView)?.let {
-                if (model.fullscreen) {
-                    it.systemBarsBehavior =
-                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                    it.hide(WindowInsetsCompat.Type.systemBars())
-                } else
-                    it.show(WindowInsetsCompat.Type.systemBars())
-            }
-        }
+        val window = activity.window
+
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+
+        if (model.fullscreen) {
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        } else
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
     }
 
     if (model.error)
@@ -689,7 +570,17 @@ fun ReaderBase(
                 }
             }
         ) {
+            val density = LocalDensity.current
             var listSize: Size? by remember { mutableStateOf(null) }
+            val listDpSize: DpSize by remember {
+                derivedStateOf {
+                    listSize?.let { listSize ->
+                        with(density) {
+                            DpSize(listSize.width.toDp(), listSize.height.toDp())
+                        }
+                    } ?: DpSize.Zero
+                }
+            }
 
             val nestedScrollConnection = remember { object: NestedScrollConnection {
                 override suspend fun onPreFling(available: Velocity): Velocity {
@@ -697,7 +588,7 @@ fun ReaderBase(
                         mainReaderOptions.snap &&
                         listState.layoutInfo.visibleItemsInfo.size > 1
                     ) {
-                        val velocity = when (mainReaderOptions.orientation) {
+                        val velocity = when (mainReaderOptions.orientation!!) {
                             ReaderOptions.Orientation.VERTICAL_DOWN -> available.y
                             ReaderOptions.Orientation.VERTICAL_UP -> -(available.y)
                             ReaderOptions.Orientation.HORIZONTAL_RIGHT -> available.x
@@ -719,33 +610,6 @@ fun ReaderBase(
                 }
             } }
 
-            val imageSources = remember { mutableStateListOf<ImageSource?>() }
-            val imageSizes = remember { mutableStateListOf<Size?>() }
-
-            LaunchedEffect(model.totalProgress) {
-                val size = model.progressList.size
-
-                if (imageSources.size != size)
-                    imageSources.addAll(List (size-imageSources.size) { null })
-
-                if (imageSizes.size != size)
-                    imageSizes.addAll(List (size-imageSizes.size) { null })
-
-                coroutineScope.launch {
-                    repeat(size) { i ->
-                        val uri = model.imageList[i]
-
-                        if (imageSources[i] == null && uri != null)
-                            imageSources[i] = FileXImageSource(FileX(activity, uri))
-
-                        if (imageSizes[i] == null && model.progressList[i] == Float.POSITIVE_INFINITY)
-                            imageSources[i]?.let {
-                                imageSizes[i] = runCatching { it.imageSize }.getOrNull()
-                            }
-                    }
-                }
-            }
-
             ReaderLazyList(
                 Modifier
                     .onGloballyPositioned { listSize = it.size.toSize() }
@@ -755,25 +619,30 @@ fun ReaderBase(
                 onScroll = { scrollDirection = it },
             ) {
                 ReaderLazyListContent(
-                    model,
-                    listSize ?: Size.Zero,
-                    imageSources,
-                    imageSizes,
-                    mainReaderOptions
-                ) {
-                    coroutineScope.launch {
-                        listState.scrollToItem(listState.firstVisibleItemIndex + 1)
+                    model.items,
+                    mainReaderOptions,
+                    listDpSize,
+                    model.fullscreen,
+                    onRequestFullscreen = {
+                        model.fullscreen = true
+                    },
+                    onNextImage = {
+                        coroutineScope.launch {
+                            listState.scrollToItem(listState.firstVisibleItemIndex + 1)
+                        }
                     }
-                }
+                )
             }
 
-            if (model.progressList.any { it.isFinite() })
+            if (model.items.any { it.progress.value.isFinite() })
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopCenter),
-                    progress = model.progressList.map { if (it.isInfinite()) 1f else abs(it) }
-                        .sum() / model.progressList.size,
+                    progress = model.items.fold(0f) { acc, item ->
+                        val progress = item.progress.value
+                        acc + if (progress.isInfinite()) 1f else progress
+                    } / model.items.size,
                     color = MaterialTheme.colors.secondary
                 )
 
@@ -782,45 +651,5 @@ fun ReaderBase(
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
-    }
-}
-
-fun Modifier.doubleClickCycleZoom(
-    state: SubSampledImageState,
-    scale: Float = 2f,
-    animationSpec: AnimationSpec<Rect> = spring(),
-    onTap: () -> Unit = { },
-) = composed {
-    val initialImageRect by produceState<Rect?>(null, state.canvasSize, state.imageSize) {
-        state.canvasSize?.let { canvasSize ->
-            state.imageSize?.let { imageSize ->
-                value = state.bound(state.scaleType(canvasSize, imageSize), canvasSize)
-            } }
-    }
-
-    val coroutineScope = rememberCoroutineScope()
-
-    pointerInput(Unit) {
-        detectTapGestures(
-            onTap = { onTap() },
-            onDoubleTap = { centroid ->
-                val imageRect = state.imageRect
-                coroutineScope.launch {
-                    if (imageRect == null || imageRect != initialImageRect)
-                        state.resetImageRect(animationSpec)
-                    else {
-                        state.setImageRectWithBound(
-                            Rect(
-                                Offset(
-                                    centroid.x - (centroid.x - imageRect.left) * scale,
-                                    centroid.y - (centroid.y - imageRect.top) * scale
-                                ),
-                                imageRect.size * scale
-                            ), animationSpec
-                        )
-                    }
-                }
-            }
-        )
     }
 }

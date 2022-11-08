@@ -91,8 +91,7 @@ class NetworkCache(context: Context) {
         cacheDir.listFiles()?.forEach { it.delete() }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    suspend fun HttpClient.load(force: Boolean = false, requestBuilder: HttpRequestBuilder.() -> Unit): Pair<StateFlow<Float>, File> = coroutineScope {
+    suspend fun HttpClient.load(force: Boolean = false, requestBuilder: HttpRequestBuilder.() -> Unit): Pair<File, StateFlow<Float>> = coroutineScope {
         val request = HttpRequestBuilder().apply(requestBuilder)
 
         val url = request.url.buildString()
@@ -165,6 +164,6 @@ class NetworkCache(context: Context) {
             }
         }
 
-        return@coroutineScope progressFlow to file
+        return@coroutineScope file to progressFlow
     }
 }

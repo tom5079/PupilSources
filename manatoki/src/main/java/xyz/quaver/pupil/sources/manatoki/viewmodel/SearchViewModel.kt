@@ -23,16 +23,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import xyz.quaver.pupil.sources.manatoki.HistoryDao
+import xyz.quaver.pupil.sources.manatoki.ManatokiDatabase
 import xyz.quaver.pupil.sources.manatoki.networking.ManatokiHttpClient
+import xyz.quaver.pupil.sources.manatoki.networking.MangaListing
 import xyz.quaver.pupil.sources.manatoki.networking.SearchParameters
 import xyz.quaver.pupil.sources.manatoki.networking.SearchResult
 
 class SearchViewModel(
-    private val client: ManatokiHttpClient
+    private val client: ManatokiHttpClient,
+    private val historyDao: HistoryDao
 ) : ViewModel() {
     private var params by mutableStateOf(SearchParameters())
 
@@ -121,6 +126,12 @@ class SearchViewModel(
     var error by mutableStateOf(false)
         private set
 
+    var mangaListing: MangaListing? by mutableStateOf(null)
+        private set
+
+    var recentItem: String? by mutableStateOf(null)
+        private set
+
     private var searchJob: Job? = null
     suspend fun search(resetPage: Boolean = true) = coroutineScope {
         searchJob?.cancelAndJoin()
@@ -130,6 +141,17 @@ class SearchViewModel(
         searchJob = launch {
             searchResult = client.search(params)
             error = searchResult == null
+        }
+    }
+
+    fun loadList(itemID: String) {
+        viewModelScope.launch {
+            val listing = client.getItem(itemID)
+
+            check(listing is MangaListing)
+
+            mangaListing = listing
+            recentItem = historyDao.getAll(listing.itemID).firstOrNull()
         }
     }
 }

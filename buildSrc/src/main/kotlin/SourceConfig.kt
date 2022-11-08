@@ -1,23 +1,25 @@
 
 object AndroidConfig {
-    const val COMPILE_SDK = 31
+    const val COMPILE_SDK = 33
     const val MIN_SDK = 21
-    const val TARGET_SDK = 31
+    const val TARGET_SDK = 33
 }
 
 object Versions {
-    const val KOTLIN = "1.6.10"
-    const val COROUTINE = "1.6.0"
+    const val KOTLIN = "1.7.10"
+    const val COROUTINE = "1.6.4"
 
-    const val JETPACK_COMPOSE = "1.2.0-alpha07"
-    const val ACCOMPANIST = "0.23.1"
+    const val JETPACK_COMPOSE = "1.3.0"
+    const val ACCOMPANIST = "0.27.0"
 
-    const val KTOR_CLIENT = "2.0.0"
+    const val KTOR_CLIENT = "2.1.3"
+
+    const val ROOM = "2.4.3"
 }
 
 object Kotlin {
     const val STDLIB = "org.jetbrains.kotlin:kotlin-stdlib:${Versions.KOTLIN}"
-    const val SERIALIZATION = "org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2"
+    const val SERIALIZATION = "org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1"
     const val COROUTINE = "org.jetbrains.kotlinx:kotlinx-coroutines-android:${Versions.COROUTINE}"
     const val COROUTINE_TEST = "org.jetbrains.kotlinx:kotlinx-coroutines-test:${Versions.COROUTINE}"
 }
@@ -49,10 +51,10 @@ object AndroidX {
     const val APPCOMPAT = "androidx.appcompat:appcompat:1.4.1"
     const val CORE_KTX = "androidx.core:core-ktx:1.7.0"
     const val NAVIGATION_COMPOSE = "androidx.navigation:navigation-compose:2.4.1"
-    const val ROOM_RUNTIME = "androidx.room:room-runtime:2.4.2"
-    const val ROOM_COMPILER = "androidx.room:room-compiler:2.4.2"
-    const val ROOM_KTX = "androidx.room:room-ktx:2.4.2"
-    const val ROOM_TESTING = "androidx.room:room-testing:2.4.2"
+    const val ROOM_RUNTIME = "androidx.room:room-runtime:${Versions.ROOM}"
+    const val ROOM_COMPILER = "androidx.room:room-compiler:${Versions.ROOM}"
+    const val ROOM_KTX = "androidx.room:room-ktx:${Versions.ROOM}"
+    const val ROOM_TESTING = "androidx.room:room-testing:${Versions.ROOM}"
     const val DATASTORE = "androidx.datastore:datastore:1.0.0"
     const val DATASTORE_PREFERENCES = "androidx.datastore:datastore-preferences:1.0.0"
     const val LIFECYCLE_LIVEDATA_KTX = "androidx.lifecycle:lifecycle-livedata-ktx:2.4.1"
@@ -94,7 +96,7 @@ object Misc {
     const val COIL_COMPOSE = "io.coil-kt:coil-compose:2.0.0-rc03"
     const val PROTOBUF = "com.google.protobuf:protobuf-javalite:3.19.1"
     const val DOCUMENTFILEX = "xyz.quaver:documentfilex:0.7.1"
-    const val SUBSAMPLEDIMAGE = "xyz.quaver:subsampledimage:0.0.1-alpha19-SNAPSHOT"
+    const val SUBSAMPLEDIMAGE = "xyz.quaver:subsampledimage:0.0.1-alpha22-SNAPSHOT"
     const val JSOUP = "org.jsoup:jsoup:1.14.3"
     const val DISK_LRU_CACHE = "com.jakewharton:disklrucache:2.0.2"
 }

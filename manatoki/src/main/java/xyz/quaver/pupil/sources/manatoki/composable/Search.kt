@@ -94,11 +94,6 @@ fun Search(
 ) {
     val model: SearchViewModel by rememberViewModel()
 
-    val client: ManatokiHttpClient by rememberInstance()
-
-    val database: ManatokiDatabase by rememberInstance()
-    val historyDao = remember { database.historyDao() }
-
     var searchFocused by remember { mutableStateOf(false) }
     val handleOffset by animateDpAsState(if (searchFocused) 0.dp else (-36).dp)
 
@@ -121,28 +116,19 @@ fun Search(
         }
     }
 
-    var mangaListing: MangaListing? by rememberSaveable { mutableStateOf(null) }
-    var recentItem: String? by rememberSaveable { mutableStateOf(null) }
-    val mangaListingListState = rememberLazyListState()
-    var mangaListingListSize: Size? by remember { mutableStateOf(null) }
-    val mangaListingInteractionSource = remember { mutableStateMapOf<String, MutableInteractionSource>() }
-    val navigationBarsPadding = LocalDensity.current.run {
-        rememberInsetsPaddingValues(
-            LocalWindowInsets.current.navigationBars
-        ).calculateBottomPadding().toPx()
+    val mangaSheetState = rememberMangaListingBottomSheetState(model.mangaListing)
+
+    LaunchedEffect(model.recentItem) {
+        model.recentItem?.let { recentItem ->
+            mangaSheetState.highlightItem(recentItem)
+        }
     }
 
     ModalBottomSheetLayout(
         sheetState = sheetState,
         sheetShape = RoundedCornerShape(32.dp, 32.dp, 0.dp, 0.dp),
         sheetContent = {
-            MangaListingBottomSheet(
-                mangaListing,
-                onListSize = { mangaListingListSize = it },
-                rippleInteractionSource = mangaListingInteractionSource,
-                listState = mangaListingListState,
-                recentItem = recentItem
-            ) { itemID ->
+            MangaListingBottomSheet(mangaSheetState) { itemID ->
                 coroutineScope.launch {
                     sheetState.snapTo(ModalBottomSheetValue.Hidden)
                 }
@@ -326,60 +312,10 @@ fun Search(
                                             .aspectRatio(3f / 4)
                                             .padding(8.dp)
                                     ) { itemID ->
+                                        model.loadList(itemID)
+
                                         coroutineScope.launch {
-                                            mangaListing = null
                                             sheetState.animateTo(ModalBottomSheetValue.Expanded)
-                                        }
-                                        coroutineScope.launch {
-                                            val list = client.getItem(itemID)
-
-                                            check(list is MangaListing)
-                                            mangaListing = list
-
-                                            val recentItemID = historyDao.getAll(list.itemID).firstOrNull() ?: return@launch
-                                            recentItem = recentItemID
-
-                                            while (mangaListingListState.layoutInfo.totalItemsCount != list.entries.size) {
-                                                delay(100)
-                                            }
-
-                                            val interactionSource = mangaListingInteractionSource.getOrPut(recentItemID) {
-                                                MutableInteractionSource()
-                                            }
-
-                                            val targetIndex =
-                                                list.entries.indexOfFirst { entry -> entry.itemID == recentItemID }
-
-                                            mangaListingListState.scrollToItem(targetIndex)
-
-                                            mangaListingListSize?.let { sheetSize ->
-                                                val targetItem =
-                                                    mangaListingListState.layoutInfo.visibleItemsInfo.first {
-                                                        it.key == recentItemID
-                                                    }
-
-                                                if (targetItem.offset == 0) {
-                                                    mangaListingListState.animateScrollBy(
-                                                        -(sheetSize.height - navigationBarsPadding - targetItem.size)
-                                                    )
-                                                }
-
-                                                delay(200)
-
-                                                with(interactionSource) {
-                                                    val interaction =
-                                                        PressInteraction.Press(
-                                                            Offset(
-                                                                sheetSize.width / 2,
-                                                                targetItem.size / 2f
-                                                            )
-                                                        )
-
-
-                                                    emit(interaction)
-                                                    emit(PressInteraction.Release(interaction))
-                                                }
-                                            }
                                         }
                                     }
                                 }

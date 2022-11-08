@@ -161,6 +161,7 @@ dependencies {
     implementation(Kodein.LOG)
 
     implementation(Misc.PROTOBUF)
+    implementation(Misc.DOCUMENTFILEX)
 
     implementation(Misc.JSOUP)
 

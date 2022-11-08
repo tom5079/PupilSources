@@ -165,6 +165,8 @@ dependencies {
     implementation(Misc.JSOUP)
     implementation(Misc.DISK_LRU_CACHE)
 
+    implementation(Misc.DOCUMENTFILEX)
+
     testImplementation(Test.JUNIT)
     testImplementation(Kotlin.COROUTINE_TEST)
     androidTestImplementation(AndroidTest.JUNIT)

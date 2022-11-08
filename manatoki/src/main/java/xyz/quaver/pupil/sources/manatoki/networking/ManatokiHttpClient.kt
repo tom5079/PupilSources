@@ -11,13 +11,17 @@ import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.select.Evaluator
+import xyz.quaver.pupil.sources.core.NetworkCache
+import xyz.quaver.pupil.sources.manatoki.CookieDao
 import xyz.quaver.pupil.sources.manatoki.ManatokiDatabase
+import java.io.File
 import java.nio.ByteBuffer
 
 @Serializable
@@ -192,22 +196,22 @@ data class SearchResult(
     val maxPage: Int
 ): Parcelable
 
-
 class ManatokiHttpClient(
     engine: HttpClientEngine,
-    database: ManatokiDatabase
+    cookieDao: CookieDao,
+    private val networkCache: NetworkCache
 ) {
-
-    val httpClient = HttpClient(engine) {
+    private val httpClient = HttpClient(engine) {
         install(ManatokiCaptcha)
         install(HttpCookies) {
-            storage = ManatokiCookiesStorage(database)
+            storage = ManatokiCookiesStorage(cookieDao)
         }
         install(HttpCache)
         install(ManatokiRateLimiter)
+        install(ManatokiHostOverrider)
     }
 
-    private val baseUrl = "https://manatoki130.net"
+    private var baseUrl = "https://manatoki.net"
     private val captchaUrl = "$baseUrl/plugin/kcaptcha"
 
     suspend fun getCookie() = httpClient.cookies(baseUrl)
@@ -537,4 +541,12 @@ class ManatokiHttpClient(
             }
         }
     }.getOrNull()
+
+    suspend fun images(readerInfo: ReaderInfo): List<Pair<File, StateFlow<Float>>> = with (networkCache) {
+        readerInfo.urls.map { url ->
+            httpClient.load {
+                url(url)
+            }
+        }
+    }
 }
